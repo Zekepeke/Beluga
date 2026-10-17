@@ -114,6 +114,18 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    @Published var vocabularyWords: [String] {
+        didSet {
+            AppPreferences.shared.vocabularyWords = vocabularyWords
+        }
+    }
+
+    @Published var textReplacements: [TextReplacement] {
+        didSet {
+            AppPreferences.shared.textReplacements = textReplacements
+        }
+    }
+
     @Published var useBeamSearch: Bool {
         didSet {
             AppPreferences.shared.useBeamSearch = useBeamSearch
@@ -217,6 +229,8 @@ class SettingsViewModel: ObservableObject {
         self.temperature = prefs.temperature
         self.noSpeechThreshold = prefs.noSpeechThreshold
         self.initialPrompt = prefs.initialPrompt
+        self.vocabularyWords = prefs.vocabularyWords
+        self.textReplacements = prefs.textReplacements
         self.useBeamSearch = prefs.useBeamSearch
         self.beamSize = prefs.beamSize
         self.debugMode = prefs.debugMode
@@ -652,7 +666,8 @@ struct Settings {
     var useBeamSearch: Bool
     var beamSize: Int
     var useAsianAutocorrect: Bool
-    
+    var textReplacements: [TextReplacement]
+
     var isAsianLanguage: Bool {
         Settings.asianLanguages.contains(selectedLanguage)
     }
@@ -668,10 +683,11 @@ struct Settings {
         self.showTimestamps = prefs.showTimestamps
         self.temperature = prefs.temperature
         self.noSpeechThreshold = prefs.noSpeechThreshold
-        self.initialPrompt = prefs.initialPrompt
+        self.initialPrompt = TextReplacer.vocabularyPrompt(base: prefs.initialPrompt, words: prefs.vocabularyWords)
         self.useBeamSearch = prefs.useBeamSearch
         self.beamSize = prefs.beamSize
         self.useAsianAutocorrect = prefs.useAsianAutocorrect
+        self.textReplacements = prefs.textReplacements
     }
 }
 
@@ -682,44 +698,35 @@ struct SettingsView: View {
     @State private var isRecordingNewShortcut = false
     @State private var selectedTab = 0
     @State private var previousModelURL: URL?
-    
+    @State private var newVocabularyWord = ""
+
     private var sheetSize: CGSize {
         let visibleFrame = NSScreen.main?.visibleFrame.size ?? CGSize(width: 1280, height: 800)
-        let width = min(550, visibleFrame.width - 40)
+        let width = min(680, visibleFrame.width - 40)
         let height = min(500, visibleFrame.height - 60)
         return CGSize(width: width, height: height)
     }
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-
-             // Shortcut Settings
-            shortcutSettings
-                .tabItem {
-                    Label("Shortcuts", systemImage: "command")
-                }
-                .tag(0)
-            // Model Settings
-            modelSettings
-                .tabItem {
-                    Label("Model", systemImage: "cpu")
-                }
-                .tag(1)
-            
-            // Transcription Settings
-            transcriptionSettings
-                .tabItem {
-                    Label("Transcription", systemImage: "text.bubble")
-                }
-                .tag(2)
-            
-            // Advanced Settings
-            advancedSettings
-                .tabItem {
-                    Label("Advanced", systemImage: "gear")
-                }
-                .tag(3)
+        VStack(spacing: 12) {
+            Picker("", selection: $selectedTab) {
+                Text("Shortcuts").tag(0)
+                Text("Model").tag(1)
+                Text("Transcription").tag(2)
+                Text("Advanced").tag(3)
+                Text("Vocabulary").tag(4)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            switch selectedTab {
+            case 0: shortcutSettings
+            case 1: modelSettings
+            case 2: transcriptionSettings
+            case 3: advancedSettings
+            default: vocabularySettings
+            }
+        }
         .padding()
         .frame(width: sheetSize.width, height: sheetSize.height)
         .background(Color(.windowBackgroundColor))
@@ -877,6 +884,100 @@ struct SettingsView: View {
         .padding()
     }
     
+    private var vocabularySettings: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Words
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Words")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text("Names and jargon Whisper should listen for. Whisper only, and the prompt is short (about 224 tokens), so keep this list brief.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack {
+                        TextField("Add a word or name", text: $newVocabularyWord)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit(addVocabularyWord)
+                        Button("Add", action: addVocabularyWord)
+                            .disabled(newVocabularyWord.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+
+                    ForEach(Array(viewModel.vocabularyWords.enumerated()), id: \.offset) { index, word in
+                        HStack {
+                            Text(word)
+                                .font(.subheadline)
+                            Spacer()
+                            Button {
+                                viewModel.vocabularyWords.remove(at: index)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.controlBackgroundColor).opacity(0.3))
+                .cornerRadius(12)
+
+                // Replacements
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Replacements")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text("Applied to every transcription, in order. Matches whole words, ignoring case; spaces and hyphens match each other. Use \\n in the replacement for a new line.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    ForEach($viewModel.textReplacements) { $rule in
+                        HStack {
+                            Toggle("", isOn: $rule.isEnabled)
+                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .labelsHidden()
+                            TextField("Find", text: $rule.find)
+                                .textFieldStyle(.roundedBorder)
+                            Image(systemName: "arrow.right")
+                                .foregroundColor(.secondary)
+                            TextField("Replace with", text: $rule.replace)
+                                .textFieldStyle(.roundedBorder)
+                            Button {
+                                viewModel.textReplacements.removeAll { $0.id == rule.id }
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Button {
+                        viewModel.textReplacements.append(TextReplacement())
+                    } label: {
+                        Label("Add Replacement", systemImage: "plus")
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.controlBackgroundColor).opacity(0.3))
+                .cornerRadius(12)
+            }
+            .padding()
+        }
+    }
+
+    private func addVocabularyWord() {
+        let word = newVocabularyWord.trimmingCharacters(in: .whitespaces)
+        guard !word.isEmpty else { return }
+        viewModel.vocabularyWords.append(word)
+        newVocabularyWord = ""
+    }
+
     private var transcriptionSettings: some View {
         ScrollView {
             VStack(spacing: 20) {
