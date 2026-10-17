@@ -311,12 +311,12 @@ class TranscriptionService: ObservableObject {
                 throw CancellationError()
             }
             
-            let result: String
+            let engineResult: String
             do {
                 if let pcmSamples, let whisper = engine as? WhisperEngine {
-                    result = try await whisper.transcribeSamples(pcmSamples, settings: settings)
+                    engineResult = try await whisper.transcribeSamples(pcmSamples, settings: settings)
                 } else {
-                    result = try await engine.transcribeAudio(url: url, settings: settings)
+                    engineResult = try await engine.transcribeAudio(url: url, settings: settings)
                 }
             } catch {
                 // Native engines may surface their own generic error after an
@@ -333,6 +333,8 @@ class TranscriptionService: ObservableObject {
                 throw error
             }
             
+            let result = TextReplacer.apply(engineResult, rules: settings.textReplacements)
+
             try Task.checkCancellation()
             
             let finalCancelled = await MainActor.run {

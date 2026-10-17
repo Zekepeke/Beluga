@@ -81,6 +81,23 @@ final class AppPreferences {
     @UserDefault(key: "initialPrompt", defaultValue: "")
     var initialPrompt: String
     
+    // Vocabulary settings (stored as JSON Data)
+    @OptionalUserDefault(key: "vocabularyWords")
+    private var vocabularyWordsData: Data?
+
+    var vocabularyWords: [String] {
+        get { vocabularyWordsData.flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? [] }
+        set { vocabularyWordsData = try? JSONEncoder().encode(newValue) }
+    }
+
+    @OptionalUserDefault(key: "textReplacements")
+    private var textReplacementsData: Data?
+
+    var textReplacements: [TextReplacement] {
+        get { textReplacementsData.flatMap { try? JSONDecoder().decode([TextReplacement].self, from: $0) } ?? [] }
+        set { textReplacementsData = try? JSONEncoder().encode(newValue) }
+    }
+
     @UserDefault(key: "useBeamSearch", defaultValue: false)
     var useBeamSearch: Bool
     
