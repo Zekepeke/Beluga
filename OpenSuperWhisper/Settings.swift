@@ -708,42 +708,25 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-
-             // Shortcut Settings
-            shortcutSettings
-                .tabItem {
-                    Label("Shortcuts", systemImage: "command")
-                }
-                .tag(0)
-            // Model Settings
-            modelSettings
-                .tabItem {
-                    Label("Model", systemImage: "cpu")
-                }
-                .tag(1)
-            
-            // Transcription Settings
-            transcriptionSettings
-                .tabItem {
-                    Label("Transcription", systemImage: "text.bubble")
-                }
-                .tag(2)
-            
-            // Advanced Settings
-            advancedSettings
-                .tabItem {
-                    Label("Advanced", systemImage: "gear")
-                }
-                .tag(3)
-
-            // Vocabulary Settings
-            vocabularySettings
-                .tabItem {
-                    Label("Vocabulary", systemImage: "character.book.closed")
-                }
-                .tag(4)
+        VStack(spacing: 12) {
+            Picker("", selection: $selectedTab) {
+                Text("Shortcuts").tag(0)
+                Text("Model").tag(1)
+                Text("Transcription").tag(2)
+                Text("Advanced").tag(3)
+                Text("Vocabulary").tag(4)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            switch selectedTab {
+            case 0: shortcutSettings
+            case 1: modelSettings
+            case 2: transcriptionSettings
+            case 3: advancedSettings
+            default: vocabularySettings
+            }
+        }
         .padding()
         .frame(width: sheetSize.width, height: sheetSize.height)
         .background(Color(.windowBackgroundColor))
