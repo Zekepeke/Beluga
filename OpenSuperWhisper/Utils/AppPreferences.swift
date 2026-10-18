@@ -98,6 +98,25 @@ final class AppPreferences {
         set { textReplacementsData = try? JSONEncoder().encode(newValue) }
     }
 
+    // LLM cleanup settings (the API key lives in the Keychain, see KeychainStore)
+    @UserDefault(key: "cleanupEnabled", defaultValue: false)
+    var cleanupEnabled: Bool
+
+    @UserDefault(key: "cleanupProvider", defaultValue: CleanupProvider.ollama.rawValue)
+    var cleanupProvider: String
+
+    @UserDefault(key: "cleanupBaseURL", defaultValue: CleanupProvider.ollama.defaultBaseURL)
+    var cleanupBaseURL: String
+
+    @UserDefault(key: "cleanupModel", defaultValue: "")
+    var cleanupModel: String
+
+    @UserDefault(key: "cleanupReasoningEffort", defaultValue: "")
+    var cleanupReasoningEffort: String
+
+    @UserDefault(key: "cleanupTimeoutSeconds", defaultValue: 5.0)
+    var cleanupTimeoutSeconds: Double
+
     @UserDefault(key: "useBeamSearch", defaultValue: false)
     var useBeamSearch: Bool
     
