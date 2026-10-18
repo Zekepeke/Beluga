@@ -94,6 +94,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     private var microphoneObserver: AnyCancellable?
     private var recordingRetentionTimer: Timer?
     private var hideMainWindowAtLaunch = false
+    private var appearanceObserver: AnyCancellable?
     
     private var terminationTask: Task<Void, Never>?
 
@@ -111,6 +112,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         guard !OpenSuperWhisperApp.isRunningTests else { return }
 
         setupStatusBarItem()
+
+        // objectWillChange fires before the value lands, so hop to the next
+        // main-queue turn to read the new state.
+        appearanceObserver = AppearanceStore.shared.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let window = self?.mainWindow else { return }
+                self?.applyWindowAppearance(to: window)
+            }
 
         // The WindowGroup window usually does not exist yet at this point:
         // SwiftUI creates it after applicationDidFinishLaunching, so it is
@@ -450,12 +460,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         window.delegate = self
         window.minSize = NSSize(width: 450, height: 400)
         window.maxSize = NSSize(width: 450, height: 900)
+        applyWindowAppearance(to: window)
 
         if hideMainWindowAtLaunch {
             hideMainWindowAtLaunch = false
             window.orderOut(nil)
             NSApplication.shared.setActivationPolicy(.accessory)
         }
+    }
+
+    /// A see-through window background needs a non-opaque NSWindow behind the SwiftUI content.
+    private func applyWindowAppearance(to window: NSWindow) {
+        // Always called on the main thread (window notifications, main-queue sink).
+        let transparent = MainActor.assumeIsolated { AppearanceStore.shared.isWindowTransparent }
+        // Slider ticks and color changes also land here; only a real flip needs work.
+        guard window.isOpaque == transparent else { return }
+        window.isOpaque = !transparent
+        window.backgroundColor = transparent ? .clear : .windowBackgroundColor
+        window.invalidateShadow()
     }
 
     @objc private func anyWindowWillClose(_ notification: Notification) {

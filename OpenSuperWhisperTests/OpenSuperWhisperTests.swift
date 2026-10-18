@@ -1333,6 +1333,10 @@ final class IndicatorWindowGeometryTests: XCTestCase {
     @MainActor
     func testWindowKeepsPanelSizeAfterPresent() async throws {
         let manager = IndicatorWindowManager.shared
+        // Fixed size so the saved Appearance preference cannot change the expectation.
+        let savedScaleProvider = manager.scaleProvider
+        manager.scaleProvider = { IndicatorSize.medium.scale }
+        defer { manager.scaleProvider = savedScaleProvider }
         let vm = manager.prepare()
         manager.presentWindow(for: vm, nearPoint: NSPoint(x: 700, y: 500))
 

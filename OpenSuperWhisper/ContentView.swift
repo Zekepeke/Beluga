@@ -308,6 +308,7 @@ class ContentViewModel: ObservableObject {
 
 struct ContentView: View {
     @ObservedObject private var errors = AppErrorCenter.shared
+    @ObservedObject private var appearance = AppearanceStore.shared
     @StateObject private var viewModel = ContentViewModel()
     @StateObject private var permissionsManager = PermissionsManager()
     @Environment(\.colorScheme) private var colorScheme
@@ -496,19 +497,14 @@ struct ContentView: View {
                     }
                     .animation(.easeInOut(duration: 0.2), value: viewModel.recordings.count)
                     .animation(.easeInOut(duration: 0.2), value: debouncedSearchText.isEmpty)
-                    .overlay(alignment: .top) {
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        ThemePalette.windowBackground(colorScheme).opacity(1),
-                                        ThemePalette.windowBackground(colorScheme).opacity(0)
-                                    ]),
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .frame(height: 20)
+                    // Fades the list out under the search bar. A mask works on any
+                    // window background; a colored overlay left a visible band.
+                    .mask {
+                        VStack(spacing: 0) {
+                            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                                .frame(height: 20)
+                            Rectangle()
+                        }
                     }
 
                     VStack(spacing: 16) {
@@ -622,7 +618,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 400, idealWidth: 400)
-        .background(ThemePalette.windowBackground(colorScheme))
+        .background(AppWindowBackground().ignoresSafeArea())
         .onAppear {
             viewModel.loadInitialData()
         }
@@ -691,6 +687,7 @@ struct ContentView: View {
                 viewModel.shouldClearSearch = false
             }
         }
+        .tint(appearance.accentColor)
     }
 }
 
@@ -762,6 +759,7 @@ struct PermissionRow: View {
 }
 
 struct RecordingRow: View {
+    @ObservedObject private var appearance = AppearanceStore.shared
     let recording: Recording
     let searchQuery: String
     let onDelete: () -> Void
@@ -967,7 +965,7 @@ struct RecordingRow: View {
                         }) {
                             Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
                                 .font(.system(size: 20))
-                                .foregroundColor(isPlaying ? .red : ThemePalette.iconAccent(colorScheme))
+                                .foregroundColor(isPlaying ? .red : ThemePalette.iconAccent(colorScheme, accent: appearance.accentColor))
                                 .contentTransition(.symbolEffect(.replace))
                         }
                         .buttonStyle(.plain)
@@ -1074,6 +1072,7 @@ struct ShimmerOverlay: View {
 }
 
 struct TranscriptionView: View {
+    @ObservedObject private var appearance = AppearanceStore.shared
     let transcribedText: String
     let searchQuery: String
     @Binding var isExpanded: Bool
@@ -1177,7 +1176,7 @@ struct TranscriptionView: View {
                         Text(isExpanded ? "Show less" : "Show more")
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     }
-                    .foregroundColor(ThemePalette.linkText(colorScheme))
+                    .foregroundColor(ThemePalette.linkText(colorScheme, accent: appearance.accentColor))
                     .font(.footnote)
                 }
                 .padding(.horizontal, 8)
@@ -1289,11 +1288,12 @@ struct MicrophonePickerIconView: View {
 }
 
 struct MainRecordButton: View {
+    @ObservedObject private var appearance = AppearanceStore.shared
     let isRecording: Bool
     @Environment(\.colorScheme) private var colorScheme
 
     private var buttonColor: Color {
-        ThemePalette.recordButtonBase(colorScheme)
+        ThemePalette.recordButtonBase(colorScheme, accent: appearance.accentColor)
     }
 
     var body: some View {
@@ -1365,18 +1365,18 @@ enum ThemePalette {
             : Color(red: 0.86, green: 0.88, blue: 0.92)
     }
 
-    static func recordButtonBase(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
+    static func recordButtonBase(_ scheme: ColorScheme, accent: Color? = nil) -> Color {
+        accent ?? (scheme == .dark
             ? .white
-            : Color(red: 0.35, green: 0.60, blue: 0.92)
+            : Color(red: 0.35, green: 0.60, blue: 0.92))
     }
 
-    static func iconAccent(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? .accentColor : .primary
+    static func iconAccent(_ scheme: ColorScheme, accent: Color? = nil) -> Color {
+        accent ?? (scheme == .dark ? .accentColor : .primary)
     }
 
-    static func linkText(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? .blue : .primary
+    static func linkText(_ scheme: ColorScheme, accent: Color? = nil) -> Color {
+        accent ?? (scheme == .dark ? .blue : .primary)
     }
 }
 

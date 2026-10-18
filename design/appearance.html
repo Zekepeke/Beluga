@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beluga Appearance Board</title>
+<style>
+:root {
+  --page: #f4f5f7; --ink: #1c1d20; --muted: #6b6f76; --rule: #d9dce1; --card: #fff;
+  --blue: #2F7FB8;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --page: #17181a; --ink: #ececee; --muted: #9a9ea6; --rule: #2c2e32; --card: #202225; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 32px 24px 96px; }
+h1 { font-size: 28px; margin: 0 0 4px; }
+h2 { font-size: 20px; margin: 56px 0 4px; padding-top: 24px; border-top: 1px solid var(--rule); }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 28px 0 10px; }
+p.note { color: var(--muted); margin: 2px 0 12px; max-width: 80ch; }
+.row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.cap { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 9px; background: var(--rule); color: var(--muted); margin-left: 6px; vertical-align: 2px; }
+.today { outline: 2px dashed var(--muted); outline-offset: 4px; border-radius: 6px; }
+img.shot { display: block; max-width: 100%; }
+
+/* ---------- backdrops ---------- */
+.bd { position: relative; border-radius: 14px; padding: 22px; overflow: hidden; }
+.bd.light { background: linear-gradient(135deg, #f6d5a6 0%, #e89ab0 40%, #8fb6e8 100%); }
+.bd.dark  { background: linear-gradient(135deg, #1d2a44 0%, #5b3a78 45%, #123a4a 100%); }
+.bd.flat-light { background: #d9dde3; } .bd.flat-dark { background: #3a3d44; }
+
+/* ---------- indicator (card 200x36 r24, window 256x96) ---------- */
+.ind-wrap { display: inline-block; }
+.ind { width: 200px; height: 36px; border-radius: 24px; padding: 0 24px; display: flex; align-items: center; gap: 8px;
+  font: 600 13px/1 -apple-system, system-ui, sans-serif; position: relative; overflow: hidden; transform-origin: top left; }
+.ind .dotcol { width: 24px; display: flex; align-items: center; justify-content: flex-start; margin-left: 0; }
+.ind .dot { width: 8px; height: 8px; border-radius: 50%; margin-left: 8px; background: linear-gradient(135deg, var(--d1), var(--d2)); box-shadow: 0 0 4px var(--dglow); }
+.dark-ui  .ind { color: #fff; } .light-ui .ind { color: #000; }
+/* default: black/white 24% over thinMaterial */
+.ind.def { background: rgba(0,0,0,.24); }
+.dark-ui .ind.def { box-shadow: inset 0 0 0 100px rgba(60,60,64,.38); background: rgba(0,0,0,.24); backdrop-filter: blur(22px) saturate(1.6); }
+.light-ui .ind.def { background: rgba(255,255,255,.24); box-shadow: inset 0 0 0 100px rgba(246,246,248,.42); backdrop-filter: blur(22px) saturate(1.6); }
+.dark-ui .ind.solid { background: rgba(40,40,40,.9); } .light-ui .ind.solid { background: rgba(255,255,255,.9); }
+.ind.trans { background: transparent; backdrop-filter: blur(34px) saturate(1.9); }
+.dark-ui .ind.trans { box-shadow: inset 0 0 0 .5px rgba(255,255,255,.12); } .light-ui .ind.trans { box-shadow: inset 0 0 0 .5px rgba(0,0,0,.08); }
+.sz-s { transform: scale(.85); } .sz-m { transform: scale(1); } .sz-l { transform: scale(1.25); }
+.indbox { display: inline-block; }
+.indbox.s { width: 170px; height: 31px; } .indbox.m { width: 200px; height: 36px; } .indbox.l { width: 250px; height: 45px; }
+
+/* ---------- main window mock (450 wide) ---------- */
+.winscale { transform-origin: top left; }
+.win { width: 450px; height: 650px; border-radius: 14px; position: relative; overflow: hidden; font-size: 13px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.28), 0 0 0 .5px rgba(0,0,0,.35); }
+.light-ui .win { --wbg: #ffffff; --surf: rgb(242,245,250); --bord: rgb(219,224,235); --card: #ffffff; --cbord: rgb(219,224,235); --txt: #000; --sub: #8a8a8e; --rec: rgb(89,153,235); --link: #000; --iconacc: #000; }
+.dark-ui  .win { --wbg: #282828; --surf: rgba(128,128,128,.1); --bord: rgba(128,128,128,.2); --card: #1e1e1e; --cbord: rgba(255,255,255,.12); --txt: #fff; --sub: #98989d; --rec: #fff; --link: #0a84ff; --iconacc: #0a84ff; }
+.win .bgl { position: absolute; inset: 0; background: var(--bg, var(--wbg)); }
+.win .bgl.vfx { backdrop-filter: blur(30px) saturate(1.8); }
+.win .content { position: absolute; inset: 0; color: var(--txt); }
+.tl { position: absolute; left: 16px; top: 14px; display: flex; gap: 8px; }
+.tl i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.tl i:nth-child(1){background:#ff5f57}.tl i:nth-child(2){background:#febc2e}.tl i:nth-child(3){background:#28c840}
+.search { position: absolute; left: 16px; right: 16px; top: 52px; height: 38px; border-radius: 20px; background: var(--surf); border: 1px solid var(--bord); padding: 9px 14px 0 40px; color: var(--sub); }
+.search::before { content: ""; position: absolute; left: 14px; top: 11px; width: 11px; height: 11px; border: 1.6px solid var(--sub); border-radius: 50%; }
+.rcard { position: absolute; left: 16px; right: 16px; background: var(--card); border: 1px solid var(--cbord); border-radius: 12px; padding: 14px 16px; }
+.rcard small { display: block; color: var(--sub); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--cbord); font-size: 12px; }
+.showmore { display: inline-block; margin-top: 8px; padding: 4px 10px; border-radius: 7px; background: rgba(10,132,255,.14); color: var(--link); font-size: 12px; }
+.bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 170px; background: transparent; }
+.recbtn { position: absolute; left: 201px; bottom: 76px; width: 48px; height: 48px; border-radius: 50%;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--recc, var(--rec)) 80%, transparent), color-mix(in srgb, var(--recc, var(--rec)) 90%, transparent)); box-shadow: 0 0 10px color-mix(in srgb, var(--recc, var(--rec)) 40%, transparent); }
+.hint { position: absolute; left: 16px; bottom: 26px; color: var(--sub); font-size: 12px; line-height: 1.9; }
+.sq { position: absolute; bottom: 20px; width: 32px; height: 32px; border-radius: 8px; background: var(--surf); border: 1px solid var(--bord); }
+
+/* ---------- accent samples ---------- */
+.samples { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 16px; }
+.samp { border-radius: 12px; padding: 14px 16px; border: 1px solid var(--rule); background: var(--card); }
+.samp.sd { background: #282828; color: #fff; border-color: #3a3a3a; } .samp.sl { background: #fff; color: #000; }
+.samp h4 { margin: 0 0 10px; font-size: 12px; font-weight: 600; opacity: .8; }
+.ctl { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; font-size: 13px; }
+.tgl { width: 38px; height: 22px; border-radius: 11px; background: var(--ac); position: relative; }
+.tgl::after { content: ""; position: absolute; right: 2px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.tgl.off { background: rgba(128,128,128,.4); } .tgl.off::after { right: auto; left: 2px; }
+.seg { display: inline-flex; padding: 2px; border-radius: 8px; background: rgba(128,128,128,.2); font-size: 12px; }
+.seg span { padding: 3px 12px; border-radius: 6px; } .seg span.on { background: rgba(255,255,255,.92); color: #000; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.samp.sd .seg span.on { background: #636366; color: #fff; }
+.btn { padding: 4px 16px; border-radius: 7px; background: var(--ac); color: #fff; font-size: 13px; }
+.prog { width: 130px; height: 5px; border-radius: 3px; background: rgba(128,128,128,.3); overflow: hidden; } .prog i { display: block; width: 60%; height: 100%; background: var(--ac); }
+.lnk { color: var(--ac); }
+.focus { padding: 3px 9px; border-radius: 6px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac) 45%, transparent); font-size: 12px; }
+.ignore { font-size: 11px; opacity: .65; }
+
+/* ---------- swatches ---------- */
+.sw { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sw b { width: 22px; height: 22px; border-radius: 50%; display: inline-block; box-shadow: inset 0 0 0 1px rgba(128,128,128,.4); }
+.sw b.sel { box-shadow: 0 0 0 2px var(--page), 0 0 0 4px var(--ink); }
+.sw b.cust { background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
+
+/* ---------- icon ---------- */
+.iconrow { display: flex; gap: 28px; align-items: flex-end; flex-wrap: wrap; }
+.iconpane { border-radius: 14px; padding: 24px; }
+.iconpane.l { background: #f2f2f4; color: #222; } .iconpane.d { background: #1a1b1d; color: #ddd; }
+.iconpane .cap { color: inherit; opacity: .6; text-align: center; }
+.iconpane figure { margin: 0; }
+.iconpane img { display: block; margin: 0 auto; }
+
+/* ---------- settings tab mock ---------- */
+.sheet { width: 680px; border-radius: 12px; padding: 16px; font-size: 13px; position: relative; box-shadow: 0 18px 40px rgba(0,0,0,.22), 0 0 0 .5px rgba(0,0,0,.35); }
+.sheet.dark-ui { background: #1e1e1e; color: #fff; --cardbg: rgba(255,255,255,.04); --sub: #98989d; --line: rgba(255,255,255,.1); }
+.sheet.light-ui { background: #ececec; color: #000; --cardbg: rgba(255,255,255,.7); --sub: #6e6e73; --line: rgba(0,0,0,.1); }
+.sheet .tabs { display: flex; padding: 2px; border-radius: 8px; background: rgba(128,128,128,.2); margin-bottom: 12px; }
+.sheet .tabs span { flex: 1; text-align: center; padding: 3px 0; border-radius: 6px; font-size: 12px; }
+.sheet.dark-ui .tabs span.on { background: #636366; } .sheet.light-ui .tabs span.on { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.scard { background: var(--cardbg); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+.scard h5 { margin: 0 0 10px; font-size: 14px; }
+.srow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 9px 0; }
+.srow .lbl small { display: block; color: var(--sub); font-size: 11px; }
+.slider { width: 160px; height: 4px; border-radius: 2px; background: rgba(128,128,128,.35); position: relative; }
+.slider i { position: absolute; left: 0; top: 0; height: 100%; width: 75%; background: var(--ac, #0a84ff); border-radius: 2px; }
+.slider::after { content: ""; position: absolute; left: calc(75% - 8px); top: -6px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.sheet .foot { display: flex; justify-content: space-between; align-items: center; padding-top: 4px; }
+.sheet .done { padding: 4px 16px; border-radius: 7px; background: var(--ac, #0a84ff); color: #fff; }
+.sheet .reset { padding: 4px 14px; border-radius: 7px; background: rgba(128,128,128,.22); }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 6px; background: rgba(128,128,128,.22); font-size: 11px; margin-left: 6px; }
+.hexbox { padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); font: 12px ui-monospace, Menlo, monospace; }
+.preview { border-radius: 10px; padding: 16px 12px; display: flex; justify-content: center; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Beluga Appearance board</h1>
+<p class="note">Stage 2 design board for Phase 5. Every "today" value comes from the code: indicator card 200x36, corner radius 24, dot 8 pt, 13 pt semibold text; window width 450; ThemePalette colors for panels and cards. Dashed outline marks what ships today. Blur and material rendering is an HTML approximation of SwiftUI's thinMaterial, so judge hue and proportion, not exact blur.</p>
+
+<!-- ================= TODAY ================= -->
+<h2>0. Today</h2>
+<p class="note">Your screenshots, unedited. Everything below must reduce to these with fresh prefs.</p>
+<div class="row">
+  <figure style="margin:0"><img class="shot today" src="today-indicator.png" width="400" alt="Today's recording indicator"><div class="cap">Indicator, dark mode, dot caught mid-blink</div></figure>
+  <figure style="margin:0"><img class="shot today" src="today-window.png" width="360" alt="Today's main window"><div class="cap">Main window, dark mode</div></figure>
+</div>
+
+<!-- ================= INDICATOR ================= -->
+<h2>1. Recording indicator</h2>
+
+<h3>Color <span class="tag">replaces the red dot only</span></h3>
+<p class="note">Orange is dropped because it already means busy, no microphone and cancel. Red keeps today's gradient and glow. A custom picker sits after the presets. Spinner, text and orange warning states do not change.</p>
+<div id="ind-colors" class="row"></div>
+
+<h3>Size <span class="tag">scales card, text and panel together; applies on next show</span></h3>
+<div id="ind-sizes" class="row"></div>
+
+<h3>Background style</h3>
+<p class="note">Default is today's look. Solid is the window color at 90%. Translucent drops the tint and uses a stronger blur. Shown over a busy backdrop in both appearances.</p>
+<div id="ind-bgs"></div>
+
+<!-- ================= ACCENT ================= -->
+<h2>2. Accent color</h2>
+<p class="note">Applied with <code>.tint(...)</code> at the root of the main window and the settings sheet. Presets: System (today), Beluga blue #2F7FB8, green, purple, pink, plus a custom picker. In the mockups the main-window record button and the "Show more" link are wired to the accent on purpose (they are hardcoded blues today); onboarding is not touched.</p>
+<div class="sw" id="acc-sw" style="margin-bottom:14px"></div>
+<div id="acc-grid" class="samples"></div>
+<p class="note" style="margin-top:14px"><b>Ignores tint, stays as today:</b> recording red (record button while recording, indicator), orange warnings, onboarding (<code>Color.blue</code> and its accent highlights), the yellow search highlight, system-drawn selection color in text fields (follows macOS accent, not the app tint).</p>
+
+<!-- ================= WINDOW ================= -->
+<h2>3. Main window background</h2>
+<p class="note">Only the window background layer changes (<code>ThemePalette.windowBackground</code>, ContentView line 625). Cards, search bar and rows keep today's panel surfaces, so in translucent mode you see exactly what shows through: the gaps and the dark-mode search bar (10% gray), while the opaque cards stay solid. Solid color example here is #1B2A33 (dark) and #E6EFF6 (light).</p>
+<div id="win-grid"></div>
+
+<!-- ================= ICON ================= -->
+<h2>4. App icon</h2>
+<p class="note">Rendered from <code>beluga-icon.svg</code> with the beluga clipped to the rounded square (the original body poked 1 to 2 px past the bottom-right corner). Transparent 100 px margin kept. Final file replaces <code>AppIcon.icns</code>; sizes below are the true pixel sizes.</p>
+<div class="row">
+  <div class="iconpane l"><figure><img src="assets/icon-1024.png" width="256" height="256" alt=""><div class="cap">1024 px (shown at 256)</div></figure></div>
+  <div class="iconpane d"><figure><img src="assets/icon-1024.png" width="256" height="256" alt=""><div class="cap">1024 px (shown at 256)</div></figure></div>
+</div>
+<div class="row" style="margin-top:16px">
+  <div class="iconpane l iconrow">
+    <figure><img src="assets/icon-128.png" width="128" height="128" alt=""><div class="cap">128</div></figure>
+    <figure><img src="assets/icon-32.png" width="32" height="32" alt=""><div class="cap">32</div></figure>
+    <figure><img src="assets/icon-16.png" width="16" height="16" alt=""><div class="cap">16</div></figure>
+  </div>
+  <div class="iconpane d iconrow">
+    <figure><img src="assets/icon-128.png" width="128" height="128" alt=""><div class="cap">128</div></figure>
+    <figure><img src="assets/icon-32.png" width="32" height="32" alt=""><div class="cap">32</div></figure>
+    <figure><img src="assets/icon-16.png" width="16" height="16" alt=""><div class="cap">16</div></figure>
+  </div>
+</div>
+
+<!-- ================= SETTINGS ================= -->
+<h2>5. Appearance settings tab</h2>
+<p class="note">New segment after AI Cleanup (tag 6), text label, existing card style (padding 16, radius 12, controlBackground at 30%). The sheet is 680 wide and 500 tall today, so the tab scrolls; shown unclipped here. Accent and window controls also apply live to the sheet itself.</p>
+<div id="settings-mocks" class="row"></div>
+
+</main>
+
+<script>
+const RED = {d1:'rgba(255,59,48,.8)', d2:'#ff3b30', glow:'rgba(255,59,48,.5)'};
+function dotVars(hex){
+  if(!hex) return `--d1:${RED.d1};--d2:${RED.d2};--dglow:${RED.glow}`;
+  return `--d1:color-mix(in srgb,${hex} 80%,transparent);--d2:${hex};--dglow:color-mix(in srgb,${hex} 50%,transparent)`;
+}
+function ind({hex=null, size='m', bg='def', text='Recording...'}={}){
+  return `<div class="indbox ${size}"><div class="ind ${bg} sz-${size}" style="${dotVars(hex)}"><div class="dotcol"><span class="dot"></span></div><span>${text}</span></div></div>`;
+}
+const colors = [
+  ['Red', null, 'today'], ['Beluga blue', '#2F7FB8'], ['Green', '#34C759'], ['Purple', '#AF52DE'], ['White', '#FFFFFF'], ['Custom', '#FF2D92']
+];
+document.getElementById('ind-colors').innerHTML = ['light','dark'].map(m => `
+  <div class="bd ${m} ${m}-ui" style="flex:1 1 440px"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:18px 14px">
+  ${colors.map(([n,h,t]) => `<div><div class="${t?'today':''}" style="display:inline-block;border-radius:24px">${ind({hex:h})}</div><div class="cap" style="color:${m=='dark'?'#ddd':'#333'}">${n}${h?' '+h:''}${t?' (today)':''}</div></div>`).join('')}
+  </div></div>`).join('');
+
+document.getElementById('ind-sizes').innerHTML = ['light','dark'].map(m => `
+  <div class="bd ${m} ${m}-ui" style="flex:1 1 440px;display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap">
+  ${[['Small','s','0.85 = 170x31'],['Medium','m','1.0 = 200x36 (today)'],['Large','l','1.25 = 250x45']].map(([n,s,d]) => `<div><div class="${s=='m'?'today':''}" style="display:inline-block;border-radius:24px">${ind({size:s})}</div><div class="cap" style="color:${m=='dark'?'#ddd':'#333'}">${n}: ${d}</div></div>`).join('')}
+  </div>`).join('');
+
+document.getElementById('ind-bgs').innerHTML = ['light','dark'].map(m => `
+  <div class="row" style="margin-bottom:14px">
+  ${[['Default (today)','def'],['Solid (window color 90%)','solid'],['Translucent (no tint, stronger blur)','trans']].map(([n,b]) => `
+   <div class="bd ${m} ${m}-ui" style="flex:1 1 300px;padding:26px 22px 14px;background-image:${m=='light'
+     ? 'repeating-linear-gradient(90deg,rgba(255,255,255,.45) 0 14px,transparent 14px 28px),linear-gradient(135deg,#f6d5a6,#e89ab0 40%,#8fb6e8)'
+     : 'repeating-linear-gradient(90deg,rgba(255,255,255,.14) 0 14px,transparent 14px 28px),linear-gradient(135deg,#1d2a44,#5b3a78 45%,#123a4a)'}">
+     <div class="${b=='def'?'today':''}" style="display:inline-block;border-radius:24px">${ind({bg:b})}</div>
+     <div class="cap" style="color:${m=='dark'?'#ddd':'#333'}">${n}, ${m}</div></div>`).join('')}
+  </div>`).join('');
+
+/* accent samples */
+const accents = [['System',null],['Beluga blue','#2F7FB8'],['Green','#34C759'],['Purple','#AF52DE'],['Pink','#FF2D92'],['Custom','#E8590C']];
+const SYS = {l:'#007AFF', d:'#0A84FF'};
+document.getElementById('acc-sw').innerHTML = accents.map(([n,h],i)=>`<span style="display:inline-flex;align-items:center;gap:6px;margin-right:10px"><span class="sw"><b class="${n=='Custom'?'cust':''} ${i==0?'sel':''}" style="${h&&n!='Custom'?'background:'+h:(n=='System'?'background:linear-gradient(135deg,#007AFF 50%,#0A84FF 50%)':'')}"></b></span><span class="cap" style="margin:0">${n}${h&&n!='System'?' '+h:''}</span></span>`).join('');
+function sample(mode, n, h){
+  const ac = h || (mode=='d'?SYS.d:SYS.l);
+  return `<div class="samp ${mode=='d'?'sd':'sl'} ${!h?'today':''}" style="--ac:${ac}"><h4>${n}${!h?' (today)':''} - ${mode=='d'?'dark':'light'}</h4>
+   <div class="ctl"><span class="tgl"></span><span class="tgl off"></span><span class="seg"><span class="on">Model</span><span>Advanced</span></span></div>
+   <div class="ctl"><span class="btn">Done</span><span class="prog"><i></i></span><span class="lnk">Show more</span></div>
+   <div class="ctl"><span class="focus">Search field focus</span>
+     <span style="width:30px;height:30px;border-radius:50%;background:${mode=='d'?'#fff':'color-mix(in srgb,'+ac+' 100%,#fff 0%)'};${mode=='d'?'background:'+ac+';opacity:.95':''}"></span><span class="ignore">record button ${mode=='d'?'(white today, accent in mockup)':'(light blue today)'}</span></div>
+  </div>`;
+}
+document.getElementById('acc-grid').innerHTML = accents.map(([n,h])=>sample('l',n,h)+sample('d',n,h)).join('');
+
+/* window mocks */
+function win(mode, style, opacity, solidHex, recc){
+  const cls = mode=='d'?'dark-ui':'light-ui';
+  let bg='', extra='';
+  const solid = mode=='d'? '#1B2A33':'#E6EFF6';
+  if(style=='system'){ bg=''; }
+  else if(style=='solid'){ bg=`--bg:color-mix(in srgb,${solid} ${opacity}%,transparent)`; }
+  else { bg=`--bg:color-mix(in srgb,${mode=='d'?'#282828':'#ffffff'} ${opacity}%,transparent)`; extra='vfx'; }
+  return `<div class="${cls}"><div style="width:360px;height:520px"><div class="winscale" style="transform:scale(.8);width:450px;height:650px">
+  <div class="win" style="${bg}"><div class="bgl ${extra}"></div><div class="content">
+   <div class="tl"><i></i><i></i><i></i></div>
+   <div class="search">Search in transcriptions</div>
+   <div class="rcard" style="top:108px">You're confusing me as I don't know what Beluga's window is. Do you want me to run the app and show you what it looks like?<br><span class="showmore">Show more</span><small>October 18, 2026<br>12:48 AM . 11s</small></div>
+   <div class="rcard" style="top:276px">What am I taking a screenshot of? Also I do not have to install<small>October 18, 2026<br>12:47 AM . 12s</small></div>
+   <div class="rcard" style="top:390px">Let's do Monday 3 p.m. to 4 p.m. ET as that is a good middle choice for me.<small>October 18, 2026</small></div>
+   <div class="bottom"><div class="recbtn"></div><div class="hint">option+&#96; to show mini recorder<br>Drop audio file here to transcribe</div><div class="sq" style="right:16px"></div><div class="sq" style="right:56px"></div><div class="sq" style="right:96px"></div></div>
+  </div></div></div></div></div>`;
+}
+const wstyles = [['System (today)','system',100],['Solid 100%','solid',100],['Solid 80%','solid',80],['Translucent 100%','trans',100],['Translucent 80%','trans',80],['Translucent 60%','trans',60]];
+document.getElementById('win-grid').innerHTML = ['l','d'].map(m=>`
+ <h3>${m=='l'?'Light':'Dark'}</h3>
+ <div class="bd ${m=='l'?'light':'dark'}" style="padding:18px;background-image:${m=='l'
+   ? 'linear-gradient(135deg,#f6c27a,#e0638a 45%,#5b8fe0),repeating-linear-gradient(0deg,rgba(255,255,255,.0) 0 24px,rgba(255,255,255,.0) 24px 48px)'
+   : 'linear-gradient(135deg,#7a2bd8,#e23d7a 40%,#1fb2c4)'}">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:24px 20px">
+   ${wstyles.map(([n,s,o])=>`<div style="width:360px">${win(m=='l'?'l':'d',s,o)}<div class="cap" style="color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6);margin-top:6px;font-size:13px;font-weight:600">${n}</div></div>`).join('')}
+  </div></div>`).join('');
+
+/* settings tab mocks */
+function sw(list, selIdx, cust){return `<span class="sw">${list.map((h,i)=>`<b class="${h==='cust'?'cust':''} ${i==selIdx?'sel':''}" style="${h&&h!=='cust'?'background:'+h:''}"></b>`).join('')}</span>`}
+function settings(m){
+  const sys = m=='d'?'#0A84FF':'#007AFF';
+  const tabs = ['Shortcuts','Model','Transcription','Advanced','Vocabulary','AI Cleanup','Appearance'];
+  return `<div style="flex:1 1 680px"><div class="sheet ${m=='d'?'dark-ui':'light-ui'}" style="--ac:${sys}">
+  <div class="tabs">${tabs.map(t=>`<span class="${t=='Appearance'?'on':''}">${t}</span>`).join('')}</div>
+  <div class="scard"><h5>Recording indicator</h5>
+    <div class="preview" style="background:${m=='d'?'linear-gradient(135deg,#1d2a44,#5b3a78)':'linear-gradient(135deg,#f6d5a6,#8fb6e8)'}"><div class="${m=='d'?'dark-ui':'light-ui'}">${ind({})}</div></div>
+    <div class="srow"><div class="lbl">Color<small>Replaces the recording dot</small></div>${sw([null,'#2F7FB8','#34C759','#AF52DE','#FFFFFF','cust'].map(h=>h===null?'#ff3b30':h),0)}</div>
+    <div class="srow"><div class="lbl">Size</div><span class="seg"><span>Small</span><span class="on">Medium</span><span>Large</span></span></div>
+    <div class="srow"><div class="lbl">Background</div><span class="seg"><span class="on">Default</span><span>Solid</span><span>Translucent</span></span></div>
+  </div>
+  <div class="scard"><h5>Accent color</h5>
+    <div class="srow"><div class="lbl">Accent<small>Buttons, toggles, links, record button</small></div>${sw(['linear-gradient(135deg,#007AFF 50%,#0A84FF 50%)','#2F7FB8','#34C759','#AF52DE','#FF2D92','cust'],0)}</div>
+  </div>
+  <div class="scard"><h5>Window</h5>
+    <div class="srow"><div class="lbl">Background</div><span class="seg"><span class="on">System</span><span>Solid</span><span>Translucent</span></span></div>
+    <div class="srow"><div class="lbl">Color<small>Solid only</small></div><span><span class="hexbox">#1B2A33</span> ${sw(['cust'],-1)}</span></div>
+    <div class="srow"><div class="lbl">Opacity<small>Solid and translucent, 60 to 100%</small></div><span style="display:flex;gap:10px;align-items:center"><span class="slider"><i></i></span><span>100%</span></span></div>
+  </div>
+  <div class="foot"><span class="reset">Reset to defaults</span><span class="done">Done</span></div>
+  </div></div>`;
+}
+document.getElementById('settings-mocks').innerHTML = settings('d') + settings('l');
+</script>
+</body>
+</html>
