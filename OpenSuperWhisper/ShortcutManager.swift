@@ -27,7 +27,7 @@ class ShortcutManager {
 
     init(registerShortcuts: Bool = true) {
         guard registerShortcuts else { return }
-        print("ShortcutManager init")
+        Log.hotkey.info("ShortcutManager init")
 
         setupKeyboardShortcuts()
         setupRecordingTrigger()
@@ -118,7 +118,7 @@ class ShortcutManager {
             }
 
             MouseButtonMonitor.shared.start(mouseButton: mouseButton)
-            print("ShortcutManager: Using mouse-button hotkey: \(mouseButton.displayName)")
+            Log.hotkey.info("trigger: mouse button \(mouseButton.displayName, privacy: .public)")
         } else if modifierKey != .none {
             useMouseButtonHotkey = false
             useModifierOnlyHotkey = true
@@ -133,12 +133,12 @@ class ShortcutManager {
             }
 
             ModifierKeyMonitor.shared.start(modifierKey: modifierKey)
-            print("ShortcutManager: Using modifier-only hotkey: \(modifierKey.displayName)")
+            Log.hotkey.info("trigger: modifier key \(modifierKey.displayName, privacy: .public)")
         } else {
             useMouseButtonHotkey = false
             useModifierOnlyHotkey = false
             KeyboardShortcuts.enable(.toggleRecord)
-            print("ShortcutManager: Using regular keyboard shortcut")
+            Log.hotkey.info("trigger: keyboard shortcut")
         }
     }
     
@@ -148,19 +148,13 @@ class ShortcutManager {
         
         let session = RecordingSessionController.shared
         if session.hasSession {
+            Log.hotkey.info("record trigger pressed, stopping active session")
             session.requestStop()
             return
         }
         guard activeVm == nil else { return }
-        let vm = IndicatorWindowManager.shared.prepare()
-        activeVm = vm
-        vm.startRecording()
-        let cursorPosition = FocusUtils.getCurrentCursorPosition()
-        Task { @MainActor in
-            let anchorPoint = await Self.resolveAnchorPoint(timeoutNanoseconds: 150_000_000)
-            let point = FocusUtils.chooseIndicatorPoint(resolvedInputAnchor: anchorPoint, cursorPosition: cursorPosition)
-            IndicatorWindowManager.shared.presentWindow(for: vm, nearPoint: point)
-        }
+        Log.hotkey.info("record trigger pressed")
+        activeVm = IndicatorWindowManager.shared.beginDictation()
         if AppPreferences.shared.holdToRecord && session.isCapturing {
             let workItem = DispatchWorkItem { [weak self] in self?.holdMode = true }
             holdWorkItem = workItem
@@ -168,37 +162,6 @@ class ShortcutManager {
         }
     }
 
-    /// Resolves the input anchor without letting a slow focused app delay the
-    /// indicator: whichever finishes first wins — the AX resolution or the
-    /// deadline. On timeout the caller falls back to the mouse position; the
-    /// late AX result is simply discarded.
-    private static func resolveAnchorPoint(timeoutNanoseconds: UInt64) async -> NSPoint? {
-        await withCheckedContinuation { (continuation: CheckedContinuation<NSPoint?, Never>) in
-            let gate = AnchorGate(continuation)
-            Task.detached {
-                let point = FocusUtils.getInputAnchorPoint()
-                await gate.resume(point)
-            }
-            Task.detached {
-                try? await Task.sleep(nanoseconds: timeoutNanoseconds)
-                await gate.resume(nil)
-            }
-        }
-    }
-    
-    private actor AnchorGate {
-        private var continuation: CheckedContinuation<NSPoint?, Never>?
-        
-        init(_ continuation: CheckedContinuation<NSPoint?, Never>) {
-            self.continuation = continuation
-        }
-        
-        func resume(_ value: NSPoint?) {
-            continuation?.resume(returning: value)
-            continuation = nil
-        }
-    }
-    
     private func handleKeyUp() {
         holdWorkItem?.cancel()
         holdWorkItem = nil

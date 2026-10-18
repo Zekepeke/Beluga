@@ -34,7 +34,6 @@ class ContentViewModel: ObservableObject {
     private let pageSize = 100
     private var currentSearchQuery = ""
     private var blinkTimer: Timer?
-    private var recordingSessionID: UUID?
     private var recordingStartTime: Date?
     private var durationTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
@@ -46,15 +45,6 @@ class ContentViewModel: ObservableObject {
             }
             return try await RecordingStore.shared.searchRecordingsAsync(query: query, limit: limit, offset: offset)
         }
-        recorder.$startFailure
-            .compactMap { $0 }
-            .sink { [weak self] failure in
-                guard let self, self.recordingSessionID == failure.sessionID else { return }
-                self.resetAfterRecordingFailure()
-                AppErrorCenter.shared.report("Recording failed", message: failure.message)
-            }
-            .store(in: &cancellables)
-
         recorder.$isConnecting
             .receive(on: RunLoop.main)
             .sink { [weak self] isConnecting in
@@ -64,6 +54,9 @@ class ContentViewModel: ObservableObject {
                     self.stopBlinking()
                     self.stopDurationTimer()
                     self.recordingDuration = 0
+                } else if !isConnecting && !self.recorder.isConnecting && !self.recorder.isRecording && self.state == .connecting {
+                    // A failed start clears isConnecting without ever recording.
+                    self.state = .idle
                 }
             }
             .store(in: &cancellables)
@@ -157,112 +150,17 @@ class ContentViewModel: ObservableObject {
         recorder.isRecording
     }
     
-    func resetAfterRecordingFailure() {
-        RecordingSessionController.shared.finish(recordingSessionID)
-        recordingSessionID = nil
-        state = .idle
-        stopBlinking()
-        stopDurationTimer()
-        recordingDuration = 0
-    }
-
+    /// The main window only triggers the shared dictation pipeline (the same one the hotkey
+    /// uses, owned by the indicator), so closing this window cannot interrupt a dictation.
+    /// The state published here just mirrors the recorder.
     func startRecording() {
         guard microphoneService.getActiveMicrophone() != nil else { return }
-        guard let id = RecordingSessionController.shared.begin(stop: { self.decodeRecording() }) else { return }
-        recordingSessionID = id
-
-        if microphoneService.isActiveMicrophoneRequiresConnection() {
-            state = .connecting
-            stopBlinking()
-            stopDurationTimer()
-            recordingDuration = 0
-        } else {
-            state = .recording
-            startBlinking()
-            recordingStartTime = Date()
-            recordingDuration = 0
-            startDurationTimerIfNeeded()
-        }
-        
-        recorder.startRecording(sessionID: id)
+        guard !RecordingSessionController.shared.hasSession else { return }
+        IndicatorWindowManager.shared.beginDictation()
     }
 
     func startDecoding() {
-        if RecordingSessionController.shared.hasSession {
-            RecordingSessionController.shared.requestStop()
-        }
-    }
-
-    private func decodeRecording() {
-        state = .decoding
-        stopBlinking()
-        stopDurationTimer()
-        
-        IndicatorWindowManager.shared.hide()
-
-        Task { [weak self] in
-            guard let self = self else { return }
-            let sessionID = self.recordingSessionID
-            defer {
-                RecordingSessionController.shared.finish(sessionID)
-                self.recordingSessionID = nil
-            }
-            if let audio = await self.recorder.stopRecording() {
-                let tempURL = audio.url
-                do {
-                    print("start decoding...")
-                    let duration = audio.duration
-                    let text = try await transcriptionService.transcribeAudio(url: tempURL, settings: Settings(), pcmSamples: audio.samples)
-
-                    if text.isEmpty {
-                        try? FileManager.default.removeItem(at: tempURL)
-                        print("No speech detected, dictation discarded")
-                    } else {
-                        let timestamp = Date()
-                        let recordingId = UUID()
-                        let fileName = Recording.fileName(for: recordingId)
-                        let newRecording = Recording(
-                            id: recordingId,
-                            timestamp: timestamp,
-                            fileName: fileName,
-                            transcription: text,
-                            duration: duration,
-                            status: .completed,
-                            progress: 1.0,
-                            sourceFileURL: nil
-                        )
-
-                        try recorder.moveTemporaryRecording(from: tempURL, to: newRecording.url)
-
-                        do { try await self.recordingStore.addRecordingSync(newRecording) }
-                        catch { throw PreservedAudioError(url: newRecording.url, underlying: error) }
-                        await MainActor.run {
-                            
-                            if !self.currentSearchQuery.isEmpty {
-                                self.shouldClearSearch = true
-                                self.currentSearchQuery = ""
-                            }
-                            self.recordings.insert(newRecording, at: 0)
-                        }
-
-                        print("Transcription result: \(text)")
-                    }
-                } catch {
-                    let source = (error as? PreservedAudioError)?.url ?? audio.url
-                    await self.recordingStore.preserveFailedDictation(RecordedAudio(url: source, samples: audio.samples), error: error)
-                }
-
-                await MainActor.run {
-                    self.state = .idle
-                    self.recordingDuration = 0
-                }
-            } else {
-                await MainActor.run {
-                    self.state = .idle
-                    self.recordingDuration = 0
-                }
-            }
-        }
+        RecordingSessionController.shared.requestStop()
     }
 
     private func stopDurationTimer() {
@@ -545,7 +443,7 @@ struct ContentView: View {
                 viewModel.startRecording()
             }
         }) {
-            if viewModel.state == .decoding || viewModel.state == .connecting {
+            if viewModel.transcriptionService.isTranscribing || viewModel.state == .connecting {
                 ProgressView()
                     .scaleEffect(1.0)
                     .frame(width: 58, height: 58)
@@ -689,9 +587,6 @@ struct ContentView: View {
         }
         .alert(item: $errors.issue) { issue in
             Alert(title: Text(issue.title), message: Text(issue.message), dismissButton: .default(Text("OK")))
-        }
-        .onReceive(errors.$issue.compactMap { $0 }) { _ in
-            (NSApplication.shared.delegate as? AppDelegate)?.showMainWindow()
         }
         .onReceive(viewModel.$loadingError.compactMap { $0 }) { message in
             errors.report("Recordings could not be loaded", message: message)

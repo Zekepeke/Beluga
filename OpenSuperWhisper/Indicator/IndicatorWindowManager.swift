@@ -32,6 +32,53 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         return newViewModel
     }
     
+    /// Starts a dictation the same way for every trigger (hotkey and the main window's record
+    /// button): the indicator view model owns the whole pipeline, so it keeps running with the
+    /// main window closed.
+    @discardableResult
+    func beginDictation() -> IndicatorViewModel {
+        let vm = prepare()
+        vm.startRecording()
+        let cursorPosition = FocusUtils.getCurrentCursorPosition()
+        Task { @MainActor in
+            let anchorPoint = await Self.resolveAnchorPoint(timeoutNanoseconds: 150_000_000)
+            let point = FocusUtils.chooseIndicatorPoint(resolvedInputAnchor: anchorPoint, cursorPosition: cursorPosition)
+            presentWindow(for: vm, nearPoint: point)
+        }
+        return vm
+    }
+
+    /// Resolves the input anchor without letting a slow focused app delay the
+    /// indicator: whichever finishes first wins — the AX resolution or the
+    /// deadline. On timeout the caller falls back to the mouse position; the
+    /// late AX result is simply discarded.
+    static func resolveAnchorPoint(timeoutNanoseconds: UInt64) async -> NSPoint? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<NSPoint?, Never>) in
+            let gate = AnchorGate(continuation)
+            Task.detached {
+                let point = FocusUtils.getInputAnchorPoint()
+                await gate.resume(point)
+            }
+            Task.detached {
+                try? await Task.sleep(nanoseconds: timeoutNanoseconds)
+                await gate.resume(nil)
+            }
+        }
+    }
+    
+    private actor AnchorGate {
+        private var continuation: CheckedContinuation<NSPoint?, Never>?
+        
+        init(_ continuation: CheckedContinuation<NSPoint?, Never>) {
+            self.continuation = continuation
+        }
+        
+        func resume(_ value: NSPoint?) {
+            continuation?.resume(returning: value)
+            continuation = nil
+        }
+    }
+    
     func presentWindow(for presentedViewModel: IndicatorViewModel, nearPoint point: NSPoint?) {
         // The recording may already be cancelled/hidden by the time the caret
         // position is resolved.

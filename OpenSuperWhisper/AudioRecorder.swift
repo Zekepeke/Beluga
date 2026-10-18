@@ -97,7 +97,7 @@ class AudioRecorder: NSObject, ObservableObject {
         do {
             try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
         } catch {
-            print("Failed to create temporary recordings directory: \(error)")
+            Log.recording.error("temp directory could not be created: \(error.localizedDescription, privacy: .public)")
         }
     }
     
@@ -122,7 +122,7 @@ class AudioRecorder: NSObject, ObservableObject {
     private static let cachedNotificationSound: NSSound? = {
         guard let soundURL = Bundle.main.url(forResource: "notification", withExtension: "mp3"),
               let sound = NSSound(contentsOf: soundURL, byReference: false) else {
-            print("Failed to load notification sound file")
+            Log.recording.error("notification sound could not be loaded")
             return nil
         }
         sound.volume = 0.3
@@ -174,14 +174,14 @@ class AudioRecorder: NSObject, ObservableObject {
         let fileURL = temporaryDirectory.appendingPathComponent("\(UUID().uuidString).wav")
         currentRecordingURL = fileURL
         
-        print("start record file to \(fileURL)")
+        Log.recording.info("starting capture")
         
         var channelCount = 1
         #if os(macOS)
         if let activeMic = activeMic {
             switchSystemDefaultInput(to: activeMic)
             channelCount = MicrophoneService.shared.getInputChannelCount(for: activeMic)
-            print("Recording with \(channelCount) input channel(s) from \(activeMic.displayName)")
+            Log.recording.info("capturing \(channelCount) channel(s)")
         }
         #endif
         
@@ -203,9 +203,9 @@ class AudioRecorder: NSObject, ObservableObject {
             } else {
                 updateRecordingState(isRecording: true, isConnecting: false)
             }
-            print("Recording started successfully")
+            Log.recording.info("capture started")
         } catch {
-            print("Failed to start recording: \(error)")
+            Log.recording.error("capture failed to start: \(error.localizedDescription, privacy: .public)")
             recordingSession = nil
             currentRecordingURL = nil
             restoreSystemDefaultInputIfNeeded()
@@ -319,7 +319,7 @@ class AudioRecorder: NSObject, ObservableObject {
         
         if MicrophoneService.shared.setSystemDefaultInputDevice(targetID) {
             previousDefaultInputDeviceID = currentDefault
-            print("Set system default input to: \(device.displayName)")
+            Log.recording.info("system default input switched for recording")
         }
     }
     
@@ -359,7 +359,7 @@ class AudioRecorder: NSObject, ObservableObject {
             isPlaying = true
             currentlyPlayingURL = url
         } catch {
-            print("Failed to play recording: \(error), url: \(url)")
+            Log.recording.error("playback failed: \(error.localizedDescription, privacy: .public)")
             isPlaying = false
             currentlyPlayingURL = nil
         }

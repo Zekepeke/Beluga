@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 @MainActor
@@ -14,8 +15,13 @@ final class AppErrorCenter: ObservableObject {
         report(title, message: error.localizedDescription)
     }
 
+    /// The alert itself lives in the main window's view. Bringing the window back here (not from
+    /// that view) keeps a failure visible when the window was closed: it is recreated and shows
+    /// the pending issue.
     func report(_ title: String, message: String) {
+        Log.history.error("reported to user: \(title, privacy: .public)")
         issue = Issue(title: title, message: message)
+        (NSApplication.shared.delegate as? AppDelegate)?.showMainWindow()
     }
 }
 

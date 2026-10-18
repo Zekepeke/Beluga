@@ -460,7 +460,7 @@ class RecordingStore: ObservableObject {
                 }
                 updatedAny = true
             } catch {
-                print("Failed to backfill duration for \(recording.id): \(error)")
+                Log.history.error("duration backfill failed: \(error.localizedDescription, privacy: .public)")
             }
         }
 

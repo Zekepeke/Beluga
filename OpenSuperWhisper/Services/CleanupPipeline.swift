@@ -167,7 +167,7 @@ enum CleanupPipeline {
 
     /// Logs the reason only: never the transcript or the API key.
     private static func skip(_ reason: CleanupOutcome.SkipReason, _ text: String) -> CleanupOutcome {
-        print("[Cleanup] skipped: \(reason)")
+        Log.cleanup.info("skipped: \(String(describing: reason), privacy: .public)")
         return .skipped(reason: reason, text: text)
     }
 }
