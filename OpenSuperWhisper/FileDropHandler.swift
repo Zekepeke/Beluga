@@ -47,6 +47,7 @@ class FileDropHandler: ObservableObject {
 
 struct FileDropOverlay: ViewModifier {
     @ObservedObject private var handler: FileDropHandler
+    @Environment(\.colorScheme) private var colorScheme
     
     init() {
         self.handler = FileDropHandler.shared
@@ -56,13 +57,11 @@ struct FileDropOverlay: ViewModifier {
         content
             .overlay {
                 if handler.isDragging {
-                    ZStack {
-                        Color(NSColor.windowBackgroundColor)
-                            .opacity(0.95)
-                        VStack(spacing: 16) {
+                    OverlayScrimCard(dashedOutline: true) {
+                        VStack(spacing: 12) {
                             Image(systemName: "arrow.down.circle")
-                                .font(.system(size: 48))
-                                .foregroundColor(AppearanceStore.shared.accent)
+                                .font(.system(size: 40))
+                                .foregroundColor(ThemePalette.iconAccent(colorScheme))
                                 .symbolEffect(.bounce, value: handler.isDragging)
                             Text("Drop audio files to transcribe")
                                 .font(.headline)
@@ -71,7 +70,7 @@ struct FileDropOverlay: ViewModifier {
                                 .foregroundColor(.secondary)
                         }
                     }
-                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
                 }
             }
             .onDrop(of: [.audio], isTargeted: $handler.isDragging) { providers in
