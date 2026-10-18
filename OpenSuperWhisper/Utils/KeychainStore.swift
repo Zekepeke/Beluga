@@ -5,7 +5,7 @@ import Security
 enum KeychainStore {
 
     private static var service: String {
-        "\(Bundle.main.bundleIdentifier ?? "OpenSuperWhisper").llm-cleanup"
+        "\(Bundle.main.bundleIdentifier ?? "com.zekepeke.beluga").llm-cleanup"
     }
 
     private static func query(for provider: CleanupProvider) -> [String: Any] {

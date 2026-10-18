@@ -1,6 +1,10 @@
-# OpenSuperWhisper
+# Beluga
 
-OpenSuperWhisper is a macOS application that provides real-time audio transcription using the Whisper model. It offers a seamless way to record and transcribe audio with customizable settings and keyboard shortcuts.
+Talk naturally. Paste polished.
+
+Based on [OpenSuperWhisper](https://github.com/Starmel/OpenSuperWhisper) by Starmel (MIT).
+
+Beluga is a macOS application that provides real-time audio transcription using the Whisper model. It offers a seamless way to record and transcribe audio with customizable settings and keyboard shortcuts.
 
 <p align="center">
 <img src="docs/image.png" width="400" /> <img src="docs/image_indicator.png" width="400" />
@@ -20,12 +24,8 @@ OpenSuperWhisper is a macOS application that provides real-time audio transcript
 
 ## Installation
 
-```shell
-brew update # Optional
-brew install opensuperwhisper
-```
-
-Or from [GitHub releases page](https://github.com/Starmel/OpenSuperWhisper/releases).
+Build from source (see [Building locally](#building-locally)).
+The build produces `Beluga.app`, which runs side by side with an installed OpenSuperWhisper.
 
 ## Requirements
 
@@ -67,7 +67,7 @@ Contributions are welcome! Please feel free to submit pull requests or create is
 
 ## License
 
-OpenSuperWhisper is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Beluga is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Whisper Models
 

@@ -34,11 +34,7 @@ struct Recording: Identifiable, Codable, FetchableRecord, PersistableRecord, Equ
     }
 
     static var recordingsDirectory: URL {
-        let applicationSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first!
-        let appDirectory = applicationSupport.appendingPathComponent(Bundle.main.bundleIdentifier!)
-        return appDirectory.appendingPathComponent("recordings")
+        SharedPaths.recordingsDirectory
     }
 
     static func fileName(for id: UUID) -> String {
@@ -81,14 +77,17 @@ class RecordingStore: ObservableObject {
     private let initializationError: Error?
 
     private convenience init() {
-        let directory = Recording.recordingsDirectory.deletingLastPathComponent()
-        self.init(databaseURL: directory.appendingPathComponent("recordings.sqlite"))
+        self.init(databaseURL: SharedPaths.databaseURL)
     }
 
     init(databaseURL: URL) {
         do {
             try FileManager.default.createDirectory(at: databaseURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let database = try DatabaseQueue(path: databaseURL.path)
+            // The history database is shared with OpenSuperWhisper; wait for the
+            // other app's write lock instead of failing with SQLITE_BUSY.
+            var configuration = Configuration()
+            configuration.busyMode = .timeout(5)
+            let database = try DatabaseQueue(path: databaseURL.path, configuration: configuration)
             try Self.setupDatabase(database)
             dbQueue = database
             initializationError = nil
