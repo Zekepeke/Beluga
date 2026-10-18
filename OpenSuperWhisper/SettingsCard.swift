@@ -26,3 +26,32 @@ extension View {
         modifier(SettingsCardModifier())
     }
 }
+
+/// A recessed field or row inside a settings card: the derived panel color, opaque, with a 1pt border.
+/// A selected row (the chosen model) gets an accent border instead.
+struct SettingsInsetModifier: ViewModifier {
+    var selected = false
+    var cornerRadius: CGFloat = 8
+    @ObservedObject private var appearance = AppearanceStore.shared
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        let surfaces = appearance.surfaces(for: colorScheme)
+        let shape = RoundedRectangle(cornerRadius: cornerRadius)
+        content
+            .background(ColorHex.color(from: surfaces.panel) ?? .clear)
+            .overlay(
+                shape.stroke(
+                    selected ? appearance.accent : (ColorHex.color(from: surfaces.border) ?? .clear),
+                    lineWidth: selected ? 1.5 : 1
+                )
+            )
+            .clipShape(shape)
+    }
+}
+
+extension View {
+    func settingsInset(selected: Bool = false, cornerRadius: CGFloat = 8) -> some View {
+        modifier(SettingsInsetModifier(selected: selected, cornerRadius: cornerRadius))
+    }
+}

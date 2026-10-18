@@ -312,7 +312,6 @@ struct ContentView: View {
     @StateObject private var viewModel = ContentViewModel()
     @StateObject private var permissionsManager = PermissionsManager()
     @Environment(\.colorScheme) private var colorScheme
-    @State private var isSettingsPresented = false
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var showDeleteConfirmation = false
@@ -595,7 +594,7 @@ struct ContentView: View {
                                 }
                                 
                                 Button(action: {
-                                    isSettingsPresented.toggle()
+                                    NotificationCenter.default.post(name: .openSettings, object: nil)
                                 }) {
                                     Image(systemName: "gear")
                                         .font(.title3)
@@ -673,12 +672,6 @@ struct ContentView: View {
             errors.report("Model could not be loaded", message: message)
         }
         .fileDropHandler()
-        .sheet(isPresented: $isSettingsPresented) {
-            SettingsView()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
-            isSettingsPresented = true
-        }
         .onChange(of: viewModel.shouldClearSearch) { _, shouldClear in
             if shouldClear {
                 searchText = ""

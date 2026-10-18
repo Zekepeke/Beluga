@@ -220,6 +220,9 @@ Settings becomes its own window, opaque, instead of a sheet.
 - Tighten `AppDelegate.isMainAppWindow` to match the main window by identifier, so the Settings window never gets the main window's translucency or `adoptMainWindow` handling. Cover this with a test.
 - Closing uses the window's own close button. There is no Done button. The GitHub link moves to the bottom of the sidebar.
 - The settings window is a single instance: opening it again focuses it.
+- Built as an AppKit-managed `NSWindow` (`SettingsWindowController`) hosting the SwiftUI `SettingsView`, not a SwiftUI `Window` or `Settings` scene, so the window background, identifier, minimum size and single-instance behavior are explicit and testable, and it can be opened from the `.openSettings` notification without a SwiftUI view in the hierarchy.
+- Main-window detection excludes windows tagged with a known identifier (`beluga.settings`) rather than matching the main window by identifier, because the SwiftUI `WindowGroup` window's identifier is not under our control.
+- Minimum size 700x480. The title bar is transparent with full-size content, so the sidebar runs to the top edge and the traffic lights sit over it.
 
 ### Sidebar
 - Items: icon, label, 30pt tall, radius 8, 9pt gap, 10pt horizontal padding.

@@ -852,72 +852,36 @@ struct SettingsView: View {
     @ObservedObject private var appearance = AppearanceStore.shared
     @StateObject private var viewModel = SettingsViewModel()
     @StateObject private var permissionsManager = PermissionsManager()
-    @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var isRecordingNewShortcut = false
-    @State private var selectedTab = 0
+    @State private var selectedSection: SettingsSection = .general
+    @State private var isAdvancedExpanded = false
     @State private var previousModelURL: URL?
     @State private var newVocabularyWord = ""
     @State private var cleanupSampleSelection = CleanupSamples.all[0].id
     @State private var cleanupCustomText = ""
 
-    private var sheetSize: CGSize {
-        let visibleFrame = NSScreen.main?.visibleFrame.size ?? CGSize(width: 1280, height: 800)
-        let width = min(680, visibleFrame.width - 40)
-        let height = min(500, visibleFrame.height - 60)
-        return CGSize(width: width, height: height)
-    }
-    
     var body: some View {
-        VStack(spacing: 12) {
-            Picker("", selection: $selectedTab) {
-                Text("Shortcuts").tag(0)
-                Text("Model").tag(1)
-                Text("Transcription").tag(2)
-                Text("Advanced").tag(3)
-                Text("Vocabulary").tag(4)
-                Text("AI Cleanup").tag(5)
-                Text("Appearance").tag(6)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+        HStack(spacing: 0) {
+            SettingsSidebar(selection: $selectedSection)
 
-            switch selectedTab {
-            case 0: shortcutSettings
-            case 1: modelSettings
-            case 2: transcriptionSettings
-            case 3: advancedSettings
-            case 4: vocabularySettings
-            case 5: cleanupSettings
-            default: AppearanceSettingsView()
+            VStack(alignment: .leading, spacing: 0) {
+                Text(selectedSection.title)
+                    .font(.system(size: 20, weight: .semibold))
+                    .padding(.horizontal, 22)
+                    .padding(.top, 4)
+                    .padding(.bottom, 2)
+
+                sectionContent
             }
+            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding()
-        .frame(width: sheetSize.width, height: sheetSize.height)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            HStack {
-                Button("Done") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                
-                Spacer()
-                
-                Link(destination: URL(string: "https://github.com/Starmel/OpenSuperWhisper")!) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "star")
-                            .font(.system(size: 10))
-                        Text("GitHub")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding()
-        }
-        // One background behind content and footer, through the safe area, so the
-        // footer bar cannot pick up a different fill.
+        // Same as the NSWindow minimum, so the view never asks for less than the window allows.
+        // The content pane starts below the safe area (the transparent title bar), so it never sits
+        // under the traffic lights.
+        .frame(minWidth: SettingsWindowMetrics.minSize.width, minHeight: SettingsWindowMetrics.minSize.height)
+        // One background behind everything, through the safe area (the title bar is transparent).
+        // The Settings window itself is painted the same color, so nothing unpainted shows.
         .background(AppWindowBackground(opaque: true).ignoresSafeArea())
         .tint(appearance.accentColor)
         .onAppear {
@@ -939,7 +903,19 @@ struct SettingsView: View {
             }
         }
     }
-    
+
+    @ViewBuilder
+    private var sectionContent: some View {
+        switch selectedSection {
+        case .general: shortcutSettings
+        case .models: modelSettings
+        case .transcription: transcriptionSettings
+        case .vocabulary: vocabularySettings
+        case .aiCleanup: cleanupSettings
+        case .appearance: AppearanceSettingsView()
+        }
+    }
+
     private var modelSettings: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -993,8 +969,7 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                                 .textSelection(.enabled)
                                 .padding(8)
-                                .background(Color(.textBackgroundColor).opacity(0.5))
-                                .cornerRadius(6)
+                                .settingsInset(cornerRadius: 6)
                         }
                         .padding(.top, 8)
                     }
@@ -1035,8 +1010,7 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                                 .textSelection(.enabled)
                                 .padding(8)
-                                .background(Color(.textBackgroundColor).opacity(0.5))
-                                .cornerRadius(6)
+                                .settingsInset(cornerRadius: 6)
                         }
                         .padding(.top, 8)
                     }
@@ -1274,8 +1248,7 @@ struct SettingsView: View {
                                 .textSelection(.enabled)
                                 .padding(8)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.textBackgroundColor).opacity(0.5))
-                                .cornerRadius(6)
+                                .settingsInset(cornerRadius: 6)
                             Text(cleanupTestCaption(result))
                                 .font(.caption)
                                 .foregroundColor(result.skipReason == nil ? .secondary : .orange)
@@ -1333,8 +1306,7 @@ struct SettingsView: View {
                         .pickerStyle(.menu)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(.controlBackgroundColor))
-                        .cornerRadius(8)
+                        .settingsInset(cornerRadius: 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         
                         if Settings.asianLanguages.contains(viewModel.selectedLanguage) {
@@ -1394,44 +1366,6 @@ struct SettingsView: View {
                 }
                 .settingsCard()
 
-                // Clipboard & Paste
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Clipboard & Paste")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Copy to Clipboard")
-                                    .font(.subheadline)
-                                Text("Keep transcription in clipboard after recording")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Toggle("", isOn: $viewModel.autoCopyToClipboard)
-                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
-                                .labelsHidden()
-                        }
-
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Auto-paste Transcription")
-                                    .font(.subheadline)
-                                Text("Automatically paste into the focused app")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Toggle("", isOn: $viewModel.autoPasteTranscription)
-                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
-                                .labelsHidden()
-                        }
-                    }
-                }
-                .settingsCard()
-
                 // Initial Prompt
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Initial Prompt")
@@ -1442,12 +1376,7 @@ struct SettingsView: View {
                         TextEditor(text: $viewModel.initialPrompt)
                             .frame(height: 60)
                             .padding(6)
-                            .background(Color(.textBackgroundColor))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                            )
+                            .settingsInset(cornerRadius: 8)
                         
                         Text("Optional text to guide the model's transcription")
                             .font(.caption)
@@ -1483,21 +1412,48 @@ struct SettingsView: View {
                             .textSelection(.enabled)
                             .padding(8)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(.textBackgroundColor).opacity(0.5))
-                            .cornerRadius(6)
+                            .settingsInset(cornerRadius: 6)
                     }
                 }
                 .settingsCard()
                 
                 RecordingStorageSettingsView()
                     .settingsCard()
+
+                advancedDisclosure
             }
             .padding()
         }
     }
+
+    private var advancedDisclosure: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { isAdvancedExpanded.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .rotationEffect(.degrees(isAdvancedExpanded ? 90 : 0))
+                    Text("Advanced")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                }
+                .foregroundColor(.secondary)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(isAdvancedExpanded ? "Expanded" : "Collapsed")
+
+            if isAdvancedExpanded {
+                advancedCards
+            }
+        }
+    }
     
-    private var advancedSettings: some View {
-        ScrollView {
+    /// The Advanced disclosure at the bottom of Transcription (was the Advanced tab).
+    private var advancedCards: some View {
+        Group {
             VStack(spacing: 20) {
                 // Decoding Strategy
                 VStack(alignment: .leading, spacing: 16) {
@@ -1586,10 +1542,9 @@ struct SettingsView: View {
                 }
                 .settingsCard()
             }
-            .padding()
         }
     }
-    
+
     private enum TriggerMode: Hashable {
         case keyCombo
         case modifier
@@ -1620,6 +1575,45 @@ struct SettingsView: View {
         return .keyCombo
     }
     
+    private var clipboardPasteCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Clipboard & Paste")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Copy to Clipboard")
+                            .font(.subheadline)
+                        Text("Keep transcription in clipboard after recording")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $viewModel.autoCopyToClipboard)
+                        .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
+                        .labelsHidden()
+                }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Auto-paste Transcription")
+                            .font(.subheadline)
+                        Text("Automatically paste into the focused app")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $viewModel.autoPasteTranscription)
+                        .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
+                        .labelsHidden()
+                }
+            }
+        }
+        .settingsCard()
+    }
+
     private var shortcutSettings: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -1674,8 +1668,7 @@ struct SettingsView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 10)
-                                .background(Color(.textBackgroundColor).opacity(0.5))
-                                .cornerRadius(8)
+                                .settingsInset(cornerRadius: 8)
 
                                 Text("One-tap to toggle recording")
                                     .font(.caption)
@@ -1704,8 +1697,7 @@ struct SettingsView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 10)
-                                .background(Color(.textBackgroundColor).opacity(0.5))
-                                .cornerRadius(8)
+                                .settingsInset(cornerRadius: 8)
 
                                 Text("Click to toggle recording, or hold when Hold to Record is on. The left and right buttons are reserved — pick the middle or an extra (thumb) button.")
                                     .font(.caption)
@@ -1729,8 +1721,7 @@ struct SettingsView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 10)
-                                .background(Color(.textBackgroundColor).opacity(0.5))
-                                .cornerRadius(8)
+                                .settingsInset(cornerRadius: 8)
 
                                 if isRecordingNewShortcut {
                                     Text("Press your new shortcut combination...")
@@ -1790,6 +1781,8 @@ struct SettingsView: View {
                     }
                 }
                 .settingsCard()
+
+                clipboardPasteCard
 
                 // Application
                 VStack(alignment: .leading, spacing: 16) {
@@ -1997,8 +1990,7 @@ struct FluidAudioModelDownloadItemView: View {
             }
         }
         .padding(12)
-        .background(isSelected ? Color(.controlBackgroundColor).opacity(0.7) : Color(.controlBackgroundColor).opacity(0.5))
-        .cornerRadius(8)
+        .settingsInset(selected: isSelected, cornerRadius: 8)
         .contentShape(Rectangle())
         .onTapGesture {
             if model.isDownloaded && !isSelected {
@@ -2240,8 +2232,7 @@ struct ModelDownloadItemView: View {
             }
         }
         .padding(12)
-        .background(isSelected ? Color(.controlBackgroundColor).opacity(0.7) : Color(.controlBackgroundColor).opacity(0.5))
-        .cornerRadius(8)
+        .settingsInset(selected: isSelected, cornerRadius: 8)
         .contentShape(Rectangle())
         .onTapGesture {
             if model.isDownloaded && !isSelected {

@@ -21,6 +21,11 @@ enum ColorHex {
         return Color(.sRGB, red: Double(c.red) / 255, green: Double(c.green) / 255, blue: Double(c.blue) / 255, opacity: 1)
     }
 
+    static func nsColor(from hex: String) -> NSColor? {
+        guard let c = components(from: hex) else { return nil }
+        return NSColor(srgbRed: CGFloat(c.red) / 255, green: CGFloat(c.green) / 255, blue: CGFloat(c.blue) / 255, alpha: 1)
+    }
+
     static func hex(from color: Color) -> String? {
         guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return nil }
         func byte(_ value: CGFloat) -> Int { Int((value * 255).rounded()) }
