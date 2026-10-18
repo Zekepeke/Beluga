@@ -480,6 +480,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     private func adoptMainWindow(_ window: NSWindow) {
         mainWindow = window
         window.delegate = self
+        SearchTitlebarAccessoryController.attach(to: window)
         window.minSize = NSSize(width: 450, height: 400)
         window.maxSize = NSSize(width: 450, height: 900)
         applyWindowAppearance(to: window)

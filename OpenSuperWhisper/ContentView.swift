@@ -319,7 +319,6 @@ struct ContentView: View {
     @State private var isSearchOpen = false
     @FocusState private var isSearchFocused: Bool
     @State private var searchFieldFrame: CGRect = .zero
-    @State private var searchIconFrame: CGRect = .zero
     @State private var searchOpenedAt = Date.distantPast
     @State private var outsideClickMonitor: Any?
 
@@ -393,14 +392,16 @@ struct ContentView: View {
     private func installOutsideClickMonitor() {
         removeOutsideClickMonitor()
         outsideClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
-            guard let height = event.window?.contentView?.bounds.height else { return event }
+            guard let bounds = event.window?.contentView?.bounds else { return event }
+            let height = bounds.height
             let point = CGPoint(x: event.locationInWindow.x, y: height - event.locationInWindow.y)
             if SearchClickRule.shouldClose(
                 isOpen: isSearchOpen,
                 queryIsEmpty: searchText.isEmpty,
                 point: point,
                 fieldFrame: searchFieldFrame,
-                iconFrame: searchIconFrame,
+                // Clicks in the title strip (the search accessory, window drag) never close the field.
+                iconFrame: CGRect(x: 0, y: 0, width: bounds.width, height: Self.titleStripHeight),
                 secondsSinceOpened: Date().timeIntervalSince(searchOpenedAt)
             ) {
                 DispatchQueue.main.async { closeSearch() }
@@ -422,83 +423,68 @@ struct ContentView: View {
         { Task { await TranscriptionQueue.shared.requeueRecording(recording) } }
     }
 
-    /// Shares the traffic lights' row: the content extends under the hidden title bar.
-    private var topBar: some View {
-        HStack(spacing: 8) {
-            Color.clear.frame(width: 70, height: 1)
+    /// Height of the title bar row (the traffic lights' centre is about 16pt below the window top).
+    private static let titleStripHeight: CGFloat = 32
 
-            if isSearchOpen {
-                HStack(spacing: 6) {
-                    Button(action: closeSearch) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(ThemePalette.secondaryText(colorScheme))
-                    }
-                    .buttonStyle(.plain)
-                    .help("Close search")
+    /// Empty strip under the traffic lights. Nothing clickable lives here: the search button is a
+    /// native title bar accessory, and the strip drags the window.
+    private var titleStrip: some View {
+        Color.clear.frame(height: Self.titleStripHeight)
+    }
 
-                    TextField("Search in transcriptions", text: $searchText)
-                        .textFieldStyle(PlainTextFieldStyle())
-                        .focused($isSearchFocused)
-                        .onChange(of: searchText) { _, newValue in
-                            performSearch(newValue)
-                        }
-                        .onKeyPress(.escape) {
-                            SearchEscapeGuard.shared.searchHandledEscape()
-                            closeSearch()
-                            return .handled
-                        }
-
-                    if searchText.isEmpty {
-                        Text("Esc")
-                            .font(.system(size: 10.5, weight: .medium))
-                            .foregroundColor(ThemePalette.secondaryText(colorScheme))
-                    } else {
-                        Button(action: {
-                            searchText = ""
-                            isSearchFocused = true
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(ThemePalette.secondaryText(colorScheme))
-                                .imageScale(.medium)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Clear search")
-                    }
-                }
-                .padding(.horizontal, 10)
-                .frame(height: 24)
-                .background(ThemePalette.panelSurface(colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1))
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear
-                            .onAppear { searchFieldFrame = proxy.frame(in: .global) }
-                            .onChange(of: proxy.frame(in: .global)) { _, frame in searchFieldFrame = frame }
-                    }
-                )
-            } else {
-                Spacer(minLength: 0)
+    /// The search field sits below the title bar row, above the pinned card.
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Button(action: closeSearch) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 13))
                     .foregroundColor(ThemePalette.secondaryText(colorScheme))
-                    .frame(width: 28, height: 28)
-                    .overlay(TitlebarClickTarget(action: openSearch))
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear
-                                .onAppear { searchIconFrame = proxy.frame(in: .global) }
-                                .onChange(of: proxy.frame(in: .global)) { _, frame in searchIconFrame = frame }
-                        }
-                    )
-                    .help("Search in transcriptions")
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityLabel("Search in transcriptions")
+            }
+            .buttonStyle(.plain)
+            .help("Close search")
+
+            TextField("Search in transcriptions", text: $searchText)
+                .textFieldStyle(PlainTextFieldStyle())
+                .focused($isSearchFocused)
+                .onChange(of: searchText) { _, newValue in
+                    performSearch(newValue)
+                }
+                .onKeyPress(.escape) {
+                    SearchEscapeGuard.shared.searchHandledEscape()
+                    closeSearch()
+                    return .handled
+                }
+
+            if searchText.isEmpty {
+                Text("Esc")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundColor(ThemePalette.secondaryText(colorScheme))
+            } else {
+                Button(action: {
+                    searchText = ""
+                    isSearchFocused = true
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(ThemePalette.secondaryText(colorScheme))
+                        .imageScale(.medium)
+                }
+                .buttonStyle(.plain)
+                .help("Clear search")
             }
         }
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .background(ThemePalette.panelSurface(colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(ThemePalette.panelBorder(colorScheme), lineWidth: 1))
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { searchFieldFrame = proxy.frame(in: .global) }
+                    .onChange(of: proxy.frame(in: .global)) { _, frame in searchFieldFrame = frame }
+            }
+        )
         .padding(.horizontal, 16)
-        // The traffic lights' centre is about 16pt below the window top.
-        .frame(height: 32)
+        .padding(.bottom, 8)
     }
 
     private var journal: some View {
@@ -638,7 +624,8 @@ struct ContentView: View {
                 PermissionsView(permissionsManager: permissionsManager)
             } else {
                 VStack(spacing: 0) {
-                    topBar
+                    titleStrip
+                    if isSearchOpen { searchField }
 
                     // The list is its own flexible region, so it scrolls fully above the bottom row.
                     Group {

@@ -645,32 +645,3 @@ struct OverlayScrimCard<Content: View>: View {
         .ignoresSafeArea()
     }
 }
-
-// MARK: - Title bar click target
-
-/// A click target that never starts a window drag. The search icon lives in the title bar row,
-/// where a plain SwiftUI button can lose the click to the window's drag handling. The rest of
-/// the row still drags the window.
-struct TitlebarClickTarget: NSViewRepresentable {
-    let action: () -> Void
-
-    func makeNSView(context: Context) -> ClickView {
-        let view = ClickView()
-        view.action = action
-        return view
-    }
-
-    func updateNSView(_ view: ClickView, context: Context) {
-        view.action = action
-    }
-
-    final class ClickView: NSView {
-        var action: (() -> Void)?
-        override var mouseDownCanMoveWindow: Bool { false }
-        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-        override func mouseDown(with event: NSEvent) {}
-        override func mouseUp(with event: NSEvent) {
-            if bounds.contains(convert(event.locationInWindow, from: nil)) { action?() }
-        }
-    }
-}
