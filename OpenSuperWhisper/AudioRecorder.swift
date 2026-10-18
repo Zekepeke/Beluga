@@ -20,7 +20,7 @@ class AudioRecorder: NSObject, ObservableObject {
     
     // Serializes all recording state mutations (start/stop/cancel/connection monitoring)
     // so a stop arriving right after a start can never overtake it.
-    private let workQueue = DispatchQueue(label: "com.opensuperwhisper.audiorecorder")
+    private let workQueue = DispatchQueue(label: "com.zekepeke.beluga.audiorecorder")
     
     private var recordingSession: PCMRecordingSession?
     private var audioPlayer: AVAudioPlayer?

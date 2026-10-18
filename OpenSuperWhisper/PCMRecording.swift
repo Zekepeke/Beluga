@@ -125,7 +125,7 @@ final class PCMRecordingWriter {
 
 final class PCMRecordingSession {
     private let engine = AVAudioEngine()
-    private let queue = DispatchQueue(label: "com.opensuperwhisper.pcm", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.zekepeke.beluga.pcm", qos: .userInitiated)
     private let writer: PCMRecordingWriter
     private var failure: Error?
     private let onFailure: (Error) -> Void

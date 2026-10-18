@@ -232,7 +232,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
                 iconImage.isTemplate = true
                 button.image = iconImage
             } else {
-                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "OpenSuperWhisper")
+                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Beluga")
             }
             
             button.action = #selector(statusBarButtonClicked(_:))
@@ -246,7 +246,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
         let menu = NSMenu()
         menu.delegate = self
         
-        menu.addItem(NSMenuItem(title: "OpenSuperWhisper", action: #selector(openApp), keyEquivalent: "o"))
+        menu.addItem(NSMenuItem(title: "Beluga", action: #selector(openApp), keyEquivalent: "o"))
 
         let transcriptionLanguageItem = NSMenuItem(title: "Language", action: nil, keyEquivalent: "")
         languageSubmenu = NSMenu()
@@ -485,7 +485,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             window.orderFrontRegardless()
             NSApplication.shared.activate(ignoringOtherApps: true)
         } else {
-            let url = URL(string: "openSuperWhisper://openMainWindow")!
+            let url = URL(string: "beluga://openMainWindow")!
             NSWorkspace.shared.open(url)
         }
     }
