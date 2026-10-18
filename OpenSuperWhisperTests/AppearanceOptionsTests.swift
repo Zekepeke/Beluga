@@ -25,8 +25,19 @@ final class AppearanceOptionsTests: XCTestCase {
         XCTAssertEqual(IndicatorBackgroundStyle(stored: "glass"), .standard)
     }
 
+    func testWindowBackgroundStyle_hasOnlySolidAndTranslucent() {
+        XCTAssertEqual(WindowBackgroundStyle.allCases, [.solid, .translucent])
+        XCTAssertEqual(WindowBackgroundStyle.defaultValue, .translucent)
+    }
+
+    func testWindowBackgroundStyle_savedSystem_readsAsTheDefault() {
+        XCTAssertEqual(WindowBackgroundStyle(stored: "system"), .translucent)
+        XCTAssertTrue(WindowBackgroundStyle.isRetired(stored: "system"))
+        XCTAssertFalse(WindowBackgroundStyle.isRetired(stored: "solid"))
+        XCTAssertFalse(WindowBackgroundStyle.isRetired(stored: ""))
+    }
+
     func testWindowBackgroundStyle_unknownRawValue_fallsBackToTranslucent() {
-        XCTAssertEqual(WindowBackgroundStyle(stored: "system"), .system)
         XCTAssertEqual(WindowBackgroundStyle(stored: "solid"), .solid)
         XCTAssertEqual(WindowBackgroundStyle(stored: "nonsense"), .translucent)
         XCTAssertEqual(WindowBackgroundStyle(stored: ""), .translucent)
@@ -34,28 +45,20 @@ final class AppearanceOptionsTests: XCTestCase {
 
     // MARK: - Window background resolution
 
-    func testWindowBaseHex_system_isNil() {
-        XCTAssertNil(AppearanceResolver.windowBaseHex(style: .system, customHex: "#112233", scheme: .dark))
+    func testWindowBaseHex_withoutCustom_followsTheScheme() {
+        XCTAssertEqual(AppearanceResolver.windowBaseHex(customHex: "", scheme: .dark), "#161D23")
+        XCTAssertEqual(AppearanceResolver.windowBaseHex(customHex: "", scheme: .light), "#E6EFF6")
     }
 
-    func testWindowBaseHex_translucent_usesTheWindowColor() {
-        XCTAssertEqual(AppearanceResolver.windowBaseHex(style: .translucent, customHex: "#112233", scheme: .light), "#112233")
-        XCTAssertEqual(AppearanceResolver.windowBaseHex(style: .translucent, customHex: "", scheme: .dark), "#1D2327")
-        XCTAssertEqual(AppearanceResolver.windowBaseHex(style: .translucent, customHex: "", scheme: .light), "#E6EFF6")
+    func testWindowBaseHex_withCustom_usesCustomInBothSchemes() {
+        XCTAssertEqual(AppearanceResolver.windowBaseHex(customHex: "#112233", scheme: .dark), "#112233")
+        XCTAssertEqual(AppearanceResolver.windowBaseHex(customHex: "112233", scheme: .light), "#112233")
+        XCTAssertEqual(AppearanceResolver.windowBaseHex(customHex: "#aabbcc", scheme: .light), "#AABBCC")
     }
 
-    func testWindowBaseHex_solidWithoutCustom_usesPerSchemeDefault() {
-        XCTAssertEqual(AppearanceResolver.windowBaseHex(style: .solid, customHex: "", scheme: .dark), "#1D2327")
-        XCTAssertEqual(AppearanceResolver.windowBaseHex(style: .solid, customHex: "", scheme: .light), "#E6EFF6")
-    }
-
-    func testWindowBaseHex_solidWithCustom_usesCustomInBothSchemes() {
-        XCTAssertEqual(AppearanceResolver.windowBaseHex(style: .solid, customHex: "#112233", scheme: .dark), "#112233")
-        XCTAssertEqual(AppearanceResolver.windowBaseHex(style: .solid, customHex: "112233", scheme: .light), "#112233")
-    }
-
-    func testWindowBaseHex_solidWithInvalidCustom_usesPerSchemeDefault() {
-        XCTAssertEqual(AppearanceResolver.windowBaseHex(style: .solid, customHex: "banana", scheme: .dark), "#1D2327")
+    func testWindowBaseHex_withInvalidCustom_usesPerSchemeDefault() {
+        XCTAssertEqual(AppearanceResolver.windowBaseHex(customHex: "banana", scheme: .dark), "#161D23")
+        XCTAssertEqual(AppearanceResolver.windowBaseHex(customHex: "banana", scheme: .light), "#E6EFF6")
     }
 
     func testClampedOpacity_staysInRange() {
@@ -68,7 +71,6 @@ final class AppearanceOptionsTests: XCTestCase {
     }
 
     func testIsWindowTransparent_onlyTranslucentLetsTheDesktopThrough() {
-        XCTAssertFalse(AppearanceResolver.isWindowTransparent(style: .system))
         XCTAssertFalse(AppearanceResolver.isWindowTransparent(style: .solid))
         XCTAssertTrue(AppearanceResolver.isWindowTransparent(style: .translucent))
     }

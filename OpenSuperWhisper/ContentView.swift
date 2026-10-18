@@ -727,6 +727,7 @@ struct PermissionRow: View {
     let title: String
     let description: String
     let action: () -> Void
+    @ObservedObject private var appearance = AppearanceStore.shared
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -965,7 +966,7 @@ struct RecordingRow: View {
                         }) {
                             Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
                                 .font(.system(size: 20))
-                                .foregroundColor(isPlaying ? .red : ThemePalette.iconAccent(colorScheme, accent: appearance.accentColor))
+                                .foregroundColor(isPlaying ? .red : ThemePalette.iconAccent(colorScheme))
                                 .contentTransition(.symbolEffect(.replace))
                         }
                         .buttonStyle(.plain)
@@ -1021,8 +1022,8 @@ struct RecordingRow: View {
             .animation(.easeInOut(duration: 0.2), value: isRegenerating)
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
-            .background(ThemePalette.cardBackground(colorScheme))
         }
+        .environment(\.colorScheme, ThemePalette.cardContentScheme(colorScheme))
         .background(ThemePalette.cardBackground(colorScheme))
         .cornerRadius(8)
         .overlay(
@@ -1176,7 +1177,7 @@ struct TranscriptionView: View {
                         Text(isExpanded ? "Show less" : "Show more")
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     }
-                    .foregroundColor(ThemePalette.linkText(colorScheme, accent: appearance.accentColor))
+                    .foregroundColor(ThemePalette.linkText(colorScheme))
                     .font(.footnote)
                 }
                 .padding(.horizontal, 8)
@@ -1199,6 +1200,7 @@ struct TranscriptionView: View {
 }
 
 struct MicrophonePickerIconView: View {
+    @ObservedObject private var appearance = AppearanceStore.shared
     @ObservedObject var microphoneService: MicrophoneService
     @State private var showMenu = false
     @Environment(\.colorScheme) private var colorScheme
@@ -1334,35 +1336,41 @@ struct MainRecordButton: View {
     }
 }
 
+/// Main-window surfaces. A thin shim over `SurfacePalette`, through `AppearanceStore`,
+/// so cards, search and buttons follow the window color and the card color option.
 enum ThemePalette {
-    static func windowBackground(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(NSColor.underPageBackgroundColor)
-            : .white
+    @MainActor
+    private static func surface(_ hex: String, opacity: Double) -> Color {
+        (ColorHex.color(from: hex) ?? .clear).opacity(opacity)
     }
 
+    @MainActor
     static func panelSurface(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color.gray.opacity(0.1)
-            : Color(red: 0.95, green: 0.96, blue: 0.98)
+        let store = AppearanceStore.shared
+        return surface(store.surfaces(for: scheme).panel, opacity: store.surfaceOpacity)
     }
 
+    @MainActor
     static func panelBorder(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color.gray.opacity(0.2)
-            : Color(red: 0.86, green: 0.88, blue: 0.92)
+        surface(AppearanceStore.shared.surfaces(for: scheme).border, opacity: 1)
     }
 
+    @MainActor
     static func cardBackground(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(NSColor.controlBackgroundColor)
-            : Color.white
+        let store = AppearanceStore.shared
+        return surface(store.surfaces(for: scheme).card, opacity: store.surfaceOpacity)
     }
 
+    @MainActor
     static func cardBorder(_ scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(NSColor.separatorColor)
-            : Color(red: 0.86, green: 0.88, blue: 0.92)
+        surface(AppearanceStore.shared.surfaces(for: scheme).border, opacity: 1)
+    }
+
+    /// The scheme the content of a card should render in, so system text colors stay readable
+    /// on a custom card color (for example Paper in dark mode).
+    @MainActor
+    static func cardContentScheme(_ scheme: ColorScheme) -> ColorScheme {
+        SurfacePalette.isLightCard(AppearanceStore.shared.surfaces(for: scheme).card) ? .light : .dark
     }
 
     static func recordButtonBase(_ scheme: ColorScheme, accent: Color? = nil) -> Color {
@@ -1371,12 +1379,15 @@ enum ThemePalette {
             : Color(red: 0.35, green: 0.60, blue: 0.92))
     }
 
-    static func iconAccent(_ scheme: ColorScheme, accent: Color? = nil) -> Color {
-        accent ?? (scheme == .dark ? .accentColor : .primary)
+    /// Text-sized accent drawn on a card (play icon, "Show more"). Fills use the accent unchanged.
+    @MainActor
+    static func iconAccent(_ scheme: ColorScheme) -> Color {
+        surface(AppearanceStore.shared.surfaces(for: scheme).cardAccentText, opacity: 1)
     }
 
-    static func linkText(_ scheme: ColorScheme, accent: Color? = nil) -> Color {
-        accent ?? (scheme == .dark ? .blue : .primary)
+    @MainActor
+    static func linkText(_ scheme: ColorScheme) -> Color {
+        surface(AppearanceStore.shared.surfaces(for: scheme).cardAccentText, opacity: 1)
     }
 }
 

@@ -1042,10 +1042,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.controlBackgroundColor).opacity(0.3))
-            .cornerRadius(12)
+            .settingsCard()
         }
         .padding()
     }
@@ -1086,10 +1083,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
 
                 // Replacements
                 VStack(alignment: .leading, spacing: 16) {
@@ -1128,10 +1122,7 @@ struct SettingsView: View {
                         Label("Add Replacement", systemImage: "plus")
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
             }
             .padding()
         }
@@ -1236,10 +1227,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
 
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Test")
@@ -1294,10 +1282,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
             }
             .padding()
         }
@@ -1365,10 +1350,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
                 
                 // Output Options
                 VStack(alignment: .leading, spacing: 16) {
@@ -1410,10 +1392,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
 
                 // Clipboard & Paste
                 VStack(alignment: .leading, spacing: 16) {
@@ -1451,10 +1430,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
 
                 // Initial Prompt
                 VStack(alignment: .leading, spacing: 16) {
@@ -1478,10 +1454,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
                 
                 // Transcriptions Directory
                 VStack(alignment: .leading, spacing: 16) {
@@ -1514,16 +1487,10 @@ struct SettingsView: View {
                             .cornerRadius(6)
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
                 
                 RecordingStorageSettingsView()
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.controlBackgroundColor).opacity(0.3))
-                    .cornerRadius(12)
+                    .settingsCard()
             }
             .padding()
         }
@@ -1561,10 +1528,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
                 
                 // Model Parameters
                 VStack(alignment: .leading, spacing: 16) {
@@ -1602,10 +1566,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
                 
                 // Debug Options
                 VStack(alignment: .leading, spacing: 16) {
@@ -1623,10 +1584,7 @@ struct SettingsView: View {
                             .help("Enable additional logging and debugging information")
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
             }
             .padding()
         }
@@ -1783,10 +1741,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
                 
                 // Recording Behavior
                 VStack(alignment: .leading, spacing: 16) {
@@ -1834,10 +1789,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
 
                 // Application
                 VStack(alignment: .leading, spacing: 16) {
@@ -1859,10 +1811,7 @@ struct SettingsView: View {
                             .labelsHidden()
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(12)
+                .settingsCard()
             }
             .padding()
         }

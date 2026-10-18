@@ -10,7 +10,8 @@ Where a value was not decided, it says "open".
 - Branch `feature/redesign`, from `develop`.
 - Every existing setting and feature keeps working and stays reachable.
 - Keep internal names (Xcode project, targets, module `OpenSuperWhisper`).
-- Keep the Appearance defaults: accent `#2F7FB8`, window Translucent at 80%, tint `#1D2327` dark and `#E6EFF6` light, unless a section below changes them on purpose.
+- Keep the Appearance defaults: accent `#2F7FB8`, window Translucent at 80%, tint `#E6EFF6` light, unless a section below changes them on purpose.
+- The dark window tint default changes from `#1D2327` to `#161D23`, to match the locked Blue-gray palette (decided in Stage 3a). Stored custom window colors are unaffected.
 - Onboarding is not touched.
 - The recording indicator is not touched.
 - No Appearance mode switch (System, Light, Dark) in this phase.
@@ -74,10 +75,13 @@ Contrast, computed on the board:
 
 Graphite and Deep sea were evaluated and dropped.
 
-### Custom accent
-If the user picks a different accent in Appearance, fills use it as is.
-Accent text in dark mode is that color lifted for contrast (derive by raising HSL lightness until it reaches at least 4.5:1 on the card, capped).
-This derivation is open and needs a pure function with tests.
+### Accent text (resolved)
+Fills always use the accent unchanged.
+Light mode: text-sized accents use the accent as is.
+Dark mode: text-sized accents use the accent lightened in HSL (hue and saturation kept, lightness raised in 1 point steps) until it reaches 4.5:1 contrast on the card.
+An accent that already reaches 4.5:1 is left alone.
+Beluga blue on the default dark card resolves to the designed value `#4A9AD4` (pinned, because plain HSL lightening gives a flatter `#4194CF`).
+On a custom card color, "text on the card" follows the card: a light card (relative luminance above 0.4) uses the accent as is, a dark card lifts it.
 
 ## 2. Surfaces and how they derive from the window color
 
@@ -97,7 +101,9 @@ Translucent windows:
 - The window fill is the tint at the Tint strength (60 to 100%) over the blur.
 - Card and panel surfaces are 92% opaque over the window, so text stays readable.
 - At the 60% minimum, cards still read as a lighter plate because of the 92% opacity plus the 1pt border.
-- Solid and System styles use fully opaque surfaces (alpha 1).
+- Solid uses fully opaque surfaces (alpha 1).
+- The System window background option is removed (it clashed with the Beluga surfaces). Window background is Solid or Translucent, default Translucent 80%. A saved "system" value reads as that default. Light and dark still follow macOS.
+- Settings always paints the Beluga window color for the current scheme, fully opaque, whatever the main window style is. It never falls back to a macOS system color.
 
 Settings:
 - Settings is always opaque and uses the opaque variants of every surface.
@@ -125,7 +131,7 @@ The `NSColor` system colors (`controlBackgroundColor`, `separatorColor`, `underP
 | Journal time column | 62 wide, 10 gap |
 | Row hover radius | 8 |
 | Hairline | 1pt, `border` color |
-| Day header | 11.5pt, semibold, uppercase, 0.05em tracking, secondary color, padding 14 top, 6 bottom, 6 horizontal |
+| Day header | 12pt, semibold, secondary color, sentence case (not uppercase), padding 14 top, 6 bottom, 6 horizontal |
 | Body text (rows) | 14pt, line height 1.4 |
 | Latest text | 16pt, line height 1.45 |
 | Time | 12pt medium, duration 11.5pt secondary |
@@ -136,8 +142,6 @@ The `NSColor` system colors (`controlBackgroundColor`, `separatorColor`, `underP
 | Settings card radius | 12 |
 | Settings window | about 820x600, resizable |
 | Settings sidebar | 190 wide |
-
-Open: the exact SwiftUI mapping of the 0.05em tracking and the uppercase day header, since "October 16, 2026" in uppercase was how the board rendered it.
 
 ## 4. Main window layout
 
@@ -159,7 +163,7 @@ Structure, top to bottom:
 - Large text, 3 lines maximum, with "Show more" and "Show less" under today's rule (see below).
 - Prominent Copy button (accent fill) copies the entire text.
 - Beside it, the other actions: play or stop, regenerate, delete.
-- The latest card shows its four actions all the time. This was my default on the board and the question was not answered. Hover-only is the alternative. Open.
+- The latest card shows its four actions all the time (decided).
 - The latest recording appears only in this card, never repeated under Today.
 - While the latest recording is pending, converting, transcribing or failed, the card shows the same status text, progress ring and failure state that rows show today, in the card.
 
@@ -264,7 +268,8 @@ Indicator, Accent and Window sections are unchanged apart from using the shared 
 ### Cards section
 - Row "Card color" with the caption "Match window follows the window color in light and dark."
 - Swatches: Match window (default, selected), then presets, then a custom picker, using the existing `ColorSwatchRow` and `CircleColorPicker`.
-- Preset ideas from the board: Paper `#FFFFFF`, Mist `#EEF3F8`, Slate `#2A343D`, Ink `#10151A`. Final preset list is open.
+- Presets (decided): Match window (default), Paper `#FFFFFF`, Mist `#EEF3F8`, Slate `#2A343D`, Ink `#10151A`, plus the custom picker.
+- Text on a custom card follows the card: when the scheme text would drop below 4.5:1 on it, the card content renders in the other scheme (so Paper in dark mode gets dark text).
 - A Reset button, disabled when the value is already "Match window". Reset clears the card color only.
 - A live preview below, on the window color: a search field, a sample history card, and a button, all drawn with the real surfaces, updating live as the color changes.
 - "Reset to defaults" at the bottom of the tab also clears the card color.
@@ -317,7 +322,8 @@ Approved. They move onto the theme surfaces.
 
 ## 10. Open items
 
-- Latest card actions: always visible (default in this file) or hover-only.
-- Final card color presets.
-- Exact accent-text lift for custom accents in dark mode.
-- Uppercase day headers versus sentence case for dates.
+None. The four items from the board are resolved above:
+- Latest card actions: always visible.
+- Card swatches: Match window, Paper, Mist, Slate, Ink, custom.
+- Dark accent lift: HSL lightening to 4.5:1 on the card, Beluga blue pinned to `#4A9AD4`.
+- Day headers: sentence case, semibold, secondary color.
