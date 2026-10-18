@@ -849,6 +849,7 @@ struct Settings {
 }
 
 struct SettingsView: View {
+    @ObservedObject private var appearance = AppearanceStore.shared
     @StateObject private var viewModel = SettingsViewModel()
     @StateObject private var permissionsManager = PermissionsManager()
     @Environment(\.dismiss) var dismiss
@@ -875,6 +876,7 @@ struct SettingsView: View {
                 Text("Advanced").tag(3)
                 Text("Vocabulary").tag(4)
                 Text("AI Cleanup").tag(5)
+                Text("Appearance").tag(6)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -885,13 +887,13 @@ struct SettingsView: View {
             case 2: transcriptionSettings
             case 3: advancedSettings
             case 4: vocabularySettings
-            default: cleanupSettings
+            case 5: cleanupSettings
+            default: AppearanceSettingsView()
             }
         }
         .padding()
         .frame(width: sheetSize.width, height: sheetSize.height)
-        .background(Color(.windowBackgroundColor))
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             HStack {
                 Button("Done") {
                     dismiss()
@@ -913,8 +915,11 @@ struct SettingsView: View {
                 .buttonStyle(.plain)
             }
             .padding()
-            .background(Color(.windowBackgroundColor))
         }
+        // One background behind content and footer, through the safe area, so the
+        // footer bar cannot pick up a different fill.
+        .background(AppWindowBackground(opaque: true).ignoresSafeArea())
+        .tint(appearance.accentColor)
         .onAppear {
             previousModelURL = viewModel.selectedModelURL
             if viewModel.selectedEngine == "fluidaudio" {
@@ -1099,7 +1104,7 @@ struct SettingsView: View {
                     ForEach($viewModel.textReplacements) { $rule in
                         HStack {
                             Toggle("", isOn: $rule.isEnabled)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                             TextField("Find", text: $rule.find)
                                 .textFieldStyle(.roundedBorder)
@@ -1144,7 +1149,7 @@ struct SettingsView: View {
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 16) {
                     Toggle("Clean up dictation with AI", isOn: $viewModel.cleanupEnabled)
-                        .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                        .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                         .font(.headline)
 
                     Text("Removes fillers, applies self-corrections and fixes punctuation before your dictation is pasted. If anything goes wrong, the raw transcript is pasted instead.")
@@ -1353,7 +1358,7 @@ struct SettingsView: View {
                                     .font(.subheadline)
                                 Spacer()
                                 Toggle("", isOn: $viewModel.useAsianAutocorrect)
-                                    .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                    .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                     .labelsHidden()
                             }
                             .padding(.top, 4)
@@ -1377,7 +1382,7 @@ struct SettingsView: View {
                                 .font(.subheadline)
                             Spacer()
                             Toggle("", isOn: $viewModel.showTimestamps)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                         }
                         
@@ -1386,7 +1391,7 @@ struct SettingsView: View {
                                 .font(.subheadline)
                             Spacer()
                             Toggle("", isOn: $viewModel.suppressBlankAudio)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                         }
                         
@@ -1400,7 +1405,7 @@ struct SettingsView: View {
                             }
                             Spacer()
                             Toggle("", isOn: $viewModel.addSpaceAfterSentence)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                         }
                     }
@@ -1427,7 +1432,7 @@ struct SettingsView: View {
                             }
                             Spacer()
                             Toggle("", isOn: $viewModel.autoCopyToClipboard)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                         }
 
@@ -1441,7 +1446,7 @@ struct SettingsView: View {
                             }
                             Spacer()
                             Toggle("", isOn: $viewModel.autoPasteTranscription)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                         }
                     }
@@ -1539,7 +1544,7 @@ struct SettingsView: View {
                                 .font(.subheadline)
                             Spacer()
                             Toggle("", isOn: $viewModel.useBeamSearch)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                                 .help("Beam search can provide better results but is slower")
                         }
@@ -1613,7 +1618,7 @@ struct SettingsView: View {
                             .font(.subheadline)
                         Spacer()
                         Toggle("", isOn: $viewModel.debugMode)
-                            .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                            .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                             .labelsHidden()
                             .help("Enable additional logging and debugging information")
                     }
@@ -1800,7 +1805,7 @@ struct SettingsView: View {
                             }
                             Spacer()
                             Toggle("", isOn: $viewModel.holdToRecord)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                         }
                         
@@ -1809,7 +1814,7 @@ struct SettingsView: View {
                                 .font(.subheadline)
                             Spacer()
                             Toggle("", isOn: $viewModel.playSoundOnRecordStart)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                                 .help("Play a notification sound when recording begins")
                         }
@@ -1824,7 +1829,7 @@ struct SettingsView: View {
                             }
                             Spacer()
                             Toggle("", isOn: $viewModel.escCancelWithoutConfirmation)
-                                .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                                .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                                 .labelsHidden()
                         }
                     }
@@ -1850,7 +1855,7 @@ struct SettingsView: View {
                         }
                         Spacer()
                         Toggle("", isOn: $viewModel.startHiddenInMenuBar)
-                            .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                            .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                             .labelsHidden()
                     }
                 }
@@ -2060,6 +2065,7 @@ struct FluidAudioModelDownloadItemView: View {
 }
 
 struct RecordingStorageSettingsView: View {
+    @ObservedObject private var appearance = AppearanceStore.shared
     @State private var autoDeleteEnabled = AppPreferences.shared.autoDeleteRecordingsEnabled
     @State private var retentionDays = AppPreferences.shared.autoDeleteRecordingsAfterDays
     @State private var diskUsage: Int64 = 0
@@ -2129,7 +2135,7 @@ struct RecordingStorageSettingsView: View {
                             }
                         }
                     ))
-                    .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                    .toggleStyle(SwitchToggleStyle(tint: appearance.accent))
                     .labelsHidden()
                     .help("Automatically delete recordings and their transcriptions older than the selected number of days")
                 }

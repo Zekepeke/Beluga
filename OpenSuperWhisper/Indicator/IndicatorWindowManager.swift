@@ -9,6 +9,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
     
     var window: NSWindow?
     var viewModel: IndicatorViewModel?
+    /// Overridable so geometry tests do not depend on the user's saved size.
+    var scaleProvider: () -> CGFloat = { AppearanceStore.shared.indicatorSize.scale }
     
     private init() {}
     
@@ -58,7 +60,8 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         
         // The card is centered inside a larger panel (margins for the appear
         // offset and shadow), so position the visible card, not the window.
-        let cardBottomInset = (windowFrame.height - IndicatorWindow.cardSize.height) / 2
+        let scale = windowFrame.height / IndicatorWindow.windowSize.height
+        let cardBottomInset = (windowFrame.height - IndicatorWindow.cardSize(scale: scale).height) / 2
         
         var x: CGFloat
         var y: CGFloat
@@ -220,12 +223,14 @@ class IndicatorWindowManager: IndicatorViewDelegate {
         }
         
         guard let window = window else { return }
+        // Read per session: a size change applies the next time the indicator shows.
+        let scale = scaleProvider()
         // Reuse the hosting view across sessions: rebuilding the SwiftUI
         // hierarchy (with its blur material) on every recording is wasted work.
         if let hostingView = window.contentView as? NSHostingView<IndicatorWindow> {
-            hostingView.rootView = IndicatorWindow(viewModel: presentedViewModel)
+            hostingView.rootView = IndicatorWindow(viewModel: presentedViewModel, scale: scale)
         } else {
-            let hostingView = NSHostingView(rootView: IndicatorWindow(viewModel: presentedViewModel))
+            let hostingView = NSHostingView(rootView: IndicatorWindow(viewModel: presentedViewModel, scale: scale))
             // Never let SwiftUI's ideal size drive the window frame: with the
             // default sizingOptions the hosting view shrinks the panel down to
             // the card size, and the window bounds then clip the animation —
@@ -235,7 +240,7 @@ class IndicatorWindowManager: IndicatorViewDelegate {
             hostingView.wantsLayer = true
             window.contentView = hostingView
         }
-        window.setContentSize(IndicatorWindow.windowSize)
+        window.setContentSize(IndicatorWindow.windowSize(scale: scale))
         window.contentView?.layoutSubtreeIfNeeded()
     }
     

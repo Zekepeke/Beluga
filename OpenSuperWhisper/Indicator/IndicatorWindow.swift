@@ -423,21 +423,24 @@ class IndicatorViewModel: ObservableObject {
 
 struct RecordingIndicator: View {
     let isBlinking: Bool
+    /// nil keeps the recording red.
+    var color: Color? = nil
     
     var body: some View {
+        let dot = color ?? .red
         Circle()
             .fill(
                 LinearGradient(
                     colors: [
-                        Color.red.opacity(0.8),
-                        Color.red
+                        dot.opacity(0.8),
+                        dot
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
             .frame(width: 8, height: 8)
-            .shadow(color: .red.opacity(0.5), radius: 4)
+            .shadow(color: dot.opacity(0.5), radius: 4)
             .opacity(isBlinking ? 0.3 : 1.0)
             .animation(.easeInOut(duration: 0.4), value: isBlinking)
     }
@@ -464,6 +467,32 @@ struct CancelConfirmationBar: View {
     }
 }
 
+/// Card fill for the three background styles. Default is the original
+/// translucent tint over a thin material.
+struct IndicatorCardBackground: View {
+    let style: IndicatorBackgroundStyle
+    @ObservedObject var appearance: AppearanceStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let rect = RoundedRectangle(cornerRadius: 24)
+        switch style {
+        case .standard:
+            rect
+                .fill(colorScheme == .dark
+                      ? Color.black.opacity(0.24)
+                      : Color.white.opacity(0.24))
+                .background {
+                    rect.fill(Material.thinMaterial)
+                }
+        case .solid:
+            rect.fill(appearance.indicatorSolidColor(for: colorScheme).opacity(0.9))
+        case .translucent:
+            rect.fill(Material.regularMaterial)
+        }
+    }
+}
+
 struct IndicatorWindow: View {
     /// Geometry shared with IndicatorWindowManager. The panel must be larger
     /// than the card: everything drawn outside the window bounds is cut off,
@@ -474,14 +503,20 @@ struct IndicatorWindow: View {
     static let appearOffset: CGFloat = 20
     static let appearInitialScale: CGFloat = 0.5
     
-    @ObservedObject var viewModel: IndicatorViewModel
-    @Environment(\.colorScheme) private var colorScheme
-    
-    private var backgroundColor: Color {
-        colorScheme == .dark
-            ? Color.black.opacity(0.24)
-            : Color.white.opacity(0.24)
+    /// Card and panel scaled together, so the margins keep clearing the appear
+    /// offset and the spring overshoot at every size.
+    static func cardSize(scale: CGFloat) -> CGSize {
+        CGSize(width: cardSize.width * scale, height: cardSize.height * scale)
     }
+
+    static func windowSize(scale: CGFloat) -> CGSize {
+        CGSize(width: windowSize.width * scale, height: windowSize.height * scale)
+    }
+    
+    @ObservedObject var viewModel: IndicatorViewModel
+    @ObservedObject private var appearance = AppearanceStore.shared
+    /// Fixed for the lifetime of the panel: a size change applies the next time the indicator shows.
+    var scale: CGFloat = 1.0
     
     var body: some View {
 
@@ -502,7 +537,7 @@ struct IndicatorWindow: View {
                 
             case .recording:
                 HStack(spacing: 8) {
-                    RecordingIndicator(isBlinking: viewModel.isBlinking)
+                    RecordingIndicator(isBlinking: viewModel.isBlinking, color: appearance.indicatorDotColor)
                         .frame(width: 24)
                     
                     if viewModel.isConfirmingCancel {
@@ -561,12 +596,7 @@ struct IndicatorWindow: View {
         .padding(.horizontal, 24)
         .frame(height: Self.cardSize.height)
         .background {
-            rect
-                .fill(backgroundColor)
-                .background {
-                    rect
-                        .fill(Material.thinMaterial)
-                }
+            IndicatorCardBackground(style: appearance.indicatorBackground, appearance: appearance)
         }
         .overlay(alignment: .bottom) {
             if viewModel.isConfirmingCancel {
@@ -575,10 +605,11 @@ struct IndicatorWindow: View {
         }
         .clipShape(rect)
         .frame(width: Self.cardSize.width)
+        .scaleEffect(scale)
         // The ideal size of the root view must match the panel: NSHostingView
         // resizes the window down to SwiftUI's ideal size, and a window sized
         // to the bare card clips the appear offset, bounce overshoot and shadow.
-        .frame(width: Self.windowSize.width, height: Self.windowSize.height)
+        .frame(width: Self.windowSize(scale: scale).width, height: Self.windowSize(scale: scale).height)
         // The appear/hide animation is NOT done in SwiftUI on purpose:
         // animating scaleEffect/offset/opacity re-rasterizes the card (material
         // + gradients + shadow) on the CPU every frame and stalls the main
