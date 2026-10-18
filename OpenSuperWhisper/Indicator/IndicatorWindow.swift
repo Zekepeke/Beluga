@@ -222,7 +222,7 @@ class IndicatorViewModel: ObservableObject {
             guard let self = self else { return }
 
             guard let audio = await self.stopRecordingOperation() else {
-                print("!!! Not found record url !!!")
+                Log.recording.error("stop returned no audio (too short or capture failed)")
                 self.finishDecoding(sessionID: sessionID)
                 return
             }
@@ -235,7 +235,7 @@ class IndicatorViewModel: ObservableObject {
                     throw CancellationError()
                 }
 
-                print("start decoding...")
+                Log.transcription.info("decoding started, \(audio.duration, format: .fixed(precision: 1))s of audio")
                 let duration = audio.duration
                 try Task.checkCancellation()
                 guard self.decodingSessionID == sessionID else {
@@ -256,7 +256,7 @@ class IndicatorViewModel: ObservableObject {
 
                 if text.isEmpty {
                     try? FileManager.default.removeItem(at: tempURL)
-                    print("No speech detected, dictation discarded")
+                    Log.transcription.notice("empty transcription, dictation discarded")
                 } else {
                     let text = await self.cleanedText(text, config: cleanupConfig)
                     try Task.checkCancellation()
@@ -286,7 +286,7 @@ class IndicatorViewModel: ObservableObject {
                     try Task.checkCancellation()
                     guard self.decodingSessionID == sessionID else { throw CancellationError() }
                     insertText(text)
-                    print("Transcription result: \(text)")
+                    Log.history.info("dictation saved and pasted, \(text.count) characters")
                 }
             } catch is CancellationError {
                 if let savedRecording {
@@ -295,7 +295,7 @@ class IndicatorViewModel: ObservableObject {
                 } else {
                     try? FileManager.default.removeItem(at: tempURL)
                 }
-                print("Transcription cancelled")
+                Log.transcription.info("dictation cancelled")
             } catch {
                 if Task.isCancelled || self.decodingSessionID != sessionID {
                     if let savedRecording {
@@ -304,7 +304,7 @@ class IndicatorViewModel: ObservableObject {
                     } else {
                         try? FileManager.default.removeItem(at: tempURL)
                     }
-                    print("Transcription cancelled")
+                    Log.transcription.info("dictation cancelled")
                 } else {
                     let source = (error as? PreservedAudioError)?.url ?? audio.url
                     await self.recordingStore.preserveFailedDictation(RecordedAudio(url: source, samples: audio.samples), error: error)
