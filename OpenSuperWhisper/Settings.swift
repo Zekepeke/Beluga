@@ -209,6 +209,155 @@ class SettingsViewModel: ObservableObject {
         }
     }
 
+    // MARK: AI Cleanup
+
+    @Published var cleanupEnabled: Bool {
+        didSet {
+            AppPreferences.shared.cleanupEnabled = cleanupEnabled
+        }
+    }
+
+    @Published var cleanupProvider: CleanupProvider {
+        didSet {
+            guard cleanupProvider != oldValue else { return }
+            let prefs = AppPreferences.shared
+            prefs.cleanupProvider = cleanupProvider.rawValue
+            if cleanupProvider != .custom {
+                cleanupBaseURL = cleanupProvider.defaultBaseURL
+            }
+            cleanupReasoningEffort = cleanupProvider.defaultReasoningEffort
+            cleanupModel = ""
+            cleanupAPIKey = KeychainStore.get(for: cleanupProvider) ?? ""
+            availableCleanupModels = []
+            cleanupModelsError = nil
+            cleanupTestResult = nil
+        }
+    }
+
+    @Published var cleanupBaseURL: String {
+        didSet {
+            AppPreferences.shared.cleanupBaseURL = cleanupBaseURL
+        }
+    }
+
+    @Published var cleanupModel: String {
+        didSet {
+            AppPreferences.shared.cleanupModel = cleanupModel
+        }
+    }
+
+    @Published var cleanupReasoningEffort: String {
+        didSet {
+            AppPreferences.shared.cleanupReasoningEffort = cleanupReasoningEffort
+        }
+    }
+
+    @Published var cleanupTimeoutSeconds: Double {
+        didSet {
+            AppPreferences.shared.cleanupTimeoutSeconds = cleanupTimeoutSeconds
+        }
+    }
+
+    /// Mirrors the Keychain entry of the selected provider; never stored in UserDefaults.
+    @Published var cleanupAPIKey: String {
+        didSet {
+            KeychainStore.set(cleanupAPIKey, for: cleanupProvider)
+        }
+    }
+
+    @Published var availableCleanupModels: [String] = []
+    @Published var isLoadingCleanupModels = false
+    @Published var cleanupModelsError: String?
+
+    struct CleanupTestResult {
+        let output: String
+        let milliseconds: Int
+        let skipReason: CleanupOutcome.SkipReason?
+        /// Set when the fallback was caused by a non-2xx response. Status code only, never the body.
+        var httpStatus: Int? = nil
+    }
+
+    @Published var cleanupTestResult: CleanupTestResult?
+    @Published var isRunningCleanupTest = false
+
+    private func currentCleanupConfig(enabled: Bool) -> CleanupConfig {
+        CleanupConfig(
+            enabled: enabled,
+            provider: cleanupProvider,
+            baseURL: cleanupBaseURL,
+            model: cleanupModel,
+            apiKey: cleanupAPIKey,
+            reasoningEffort: cleanupReasoningEffort,
+            timeout: cleanupTimeoutSeconds,
+            vocabulary: vocabularyWords
+        )
+    }
+
+    func refreshCleanupModels() async {
+        isLoadingCleanupModels = true
+        cleanupModelsError = nil
+        defer { isLoadingCleanupModels = false }
+
+        let provider = cleanupProvider
+        let cleaner = CleanupPipeline.makeCleaner(config: currentCleanupConfig(enabled: true))
+        do {
+            let models = try await cleaner.listModels()
+            guard provider == cleanupProvider else { return }
+            availableCleanupModels = models
+            if models.isEmpty { cleanupModelsError = "The provider returned no models." }
+        } catch {
+            guard provider == cleanupProvider else { return }
+            availableCleanupModels = []
+            cleanupModelsError = cleanupErrorMessage(error)
+        }
+    }
+
+    /// Runs the real pipeline, with its own cooldown so a rate limit hit here
+    /// does not affect dictation.
+    func runCleanupTest(_ text: String) async {
+        isRunningCleanupTest = true
+        cleanupTestResult = nil
+        defer { isRunningCleanupTest = false }
+
+        let config = currentCleanupConfig(enabled: true)
+        let started = Date()
+        let (outcome, failure) = await CleanupPipeline.runReportingFailure(
+            text: text,
+            config: config,
+            cleaner: CleanupPipeline.makeCleaner(config: config),
+            cooldown: CleanupCooldown()
+        )
+        var httpStatus: Int?
+        if case .http(let status)? = failure { httpStatus = status }
+        let milliseconds = Int(Date().timeIntervalSince(started) * 1000)
+
+        switch outcome {
+        case .cleaned(let output):
+            cleanupTestResult = CleanupTestResult(output: output, milliseconds: milliseconds, skipReason: nil)
+        case .skipped(let reason, let output):
+            cleanupTestResult = CleanupTestResult(output: output, milliseconds: milliseconds, skipReason: reason, httpStatus: httpStatus)
+        }
+    }
+
+    private func cleanupErrorMessage(_ error: Error) -> String {
+        let host = URL(string: cleanupBaseURL)?.host.map { host in
+            URL(string: cleanupBaseURL)?.port.map { "\(host):\($0)" } ?? host
+        } ?? cleanupBaseURL
+        switch error as? CleanupError {
+        case .network, .timeout:
+            let hint = cleanupProvider.isLocal ? " - is it running?" : ""
+            return "Couldn't reach \(cleanupProvider.displayName) at \(host)\(hint)"
+        case .http(let status) where status == 401 || status == 403:
+            return "\(cleanupProvider.displayName) rejected the API key (HTTP \(status))."
+        case .http(let status):
+            return "\(cleanupProvider.displayName) returned HTTP \(status)."
+        case .rateLimited:
+            return "\(cleanupProvider.displayName) is rate limiting requests. Try again shortly."
+        case .invalidResponse, .none:
+            return "\(cleanupProvider.displayName) returned a response that could not be read."
+        }
+    }
+
     private let downloadWhisper: (URL, String, @escaping (Double) -> Void) async throws -> Void
 
     private let downloadFluid: (AsrModelVersion, ProgressHandler?) async throws -> AsrModels
@@ -244,6 +393,14 @@ class SettingsViewModel: ObservableObject {
         self.addSpaceAfterSentence = prefs.addSpaceAfterSentence
         self.autoCopyToClipboard = prefs.autoCopyToClipboard
         self.autoPasteTranscription = prefs.autoPasteTranscription
+        let cleanupProvider = CleanupProvider(rawValue: prefs.cleanupProvider) ?? .ollama
+        self.cleanupEnabled = prefs.cleanupEnabled
+        self.cleanupProvider = cleanupProvider
+        self.cleanupBaseURL = prefs.cleanupBaseURL
+        self.cleanupModel = prefs.cleanupModel
+        self.cleanupReasoningEffort = prefs.cleanupReasoningEffort
+        self.cleanupTimeoutSeconds = prefs.cleanupTimeoutSeconds
+        self.cleanupAPIKey = KeychainStore.get(for: cleanupProvider) ?? ""
 
         if let savedPath = prefs.selectedWhisperModelPath ?? prefs.selectedModelPath {
             self.selectedModelURL = URL(fileURLWithPath: savedPath)
@@ -699,6 +856,8 @@ struct SettingsView: View {
     @State private var selectedTab = 0
     @State private var previousModelURL: URL?
     @State private var newVocabularyWord = ""
+    @State private var cleanupSampleSelection = CleanupSamples.all[0].id
+    @State private var cleanupCustomText = ""
 
     private var sheetSize: CGSize {
         let visibleFrame = NSScreen.main?.visibleFrame.size ?? CGSize(width: 1280, height: 800)
@@ -715,6 +874,7 @@ struct SettingsView: View {
                 Text("Transcription").tag(2)
                 Text("Advanced").tag(3)
                 Text("Vocabulary").tag(4)
+                Text("AI Cleanup").tag(5)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -724,7 +884,8 @@ struct SettingsView: View {
             case 1: modelSettings
             case 2: transcriptionSettings
             case 3: advancedSettings
-            default: vocabularySettings
+            case 4: vocabularySettings
+            default: cleanupSettings
             }
         }
         .padding()
@@ -969,6 +1130,188 @@ struct SettingsView: View {
             }
             .padding()
         }
+    }
+
+    private static let customSampleID = "custom"
+
+    private var cleanupTestText: String {
+        if cleanupSampleSelection == Self.customSampleID { return cleanupCustomText }
+        return CleanupSamples.all.first { $0.id == cleanupSampleSelection }?.text ?? ""
+    }
+
+    private var cleanupSettings: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Toggle("Clean up dictation with AI", isOn: $viewModel.cleanupEnabled)
+                        .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
+                        .font(.headline)
+
+                    Text("Removes fillers, applies self-corrections and fixes punctuation before your dictation is pasted. If anything goes wrong, the raw transcript is pasted instead.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Picker("Provider", selection: $viewModel.cleanupProvider) {
+                        ForEach(CleanupProvider.allCases) { provider in
+                            Text(provider.displayName).tag(provider)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Base URL")
+                            .font(.subheadline)
+                        TextField("https://...", text: $viewModel.cleanupBaseURL)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    if viewModel.cleanupProvider.requiresAPIKey || viewModel.cleanupProvider == .custom {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.cleanupProvider == .custom ? "API Key (optional)" : "API Key")
+                                .font(.subheadline)
+                            SecureField("Stored in your Keychain", text: $viewModel.cleanupAPIKey)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Model")
+                            .font(.subheadline)
+                        HStack {
+                            TextField("Model name", text: $viewModel.cleanupModel)
+                                .textFieldStyle(.roundedBorder)
+                            if !viewModel.availableCleanupModels.isEmpty {
+                                Menu("Choose") {
+                                    ForEach(viewModel.availableCleanupModels, id: \.self) { model in
+                                        Button(model) { viewModel.cleanupModel = model }
+                                    }
+                                }
+                                .fixedSize()
+                            }
+                            Button {
+                                Task { await viewModel.refreshCleanupModels() }
+                            } label: {
+                                if viewModel.isLoadingCleanupModels {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Text("Refresh")
+                                }
+                            }
+                            .disabled(viewModel.isLoadingCleanupModels)
+                        }
+                        if let error = viewModel.cleanupModelsError {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                    }
+
+                    if viewModel.cleanupProvider.supportsReasoningEffort {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Picker("Reasoning effort", selection: $viewModel.cleanupReasoningEffort) {
+                                Text("Default").tag("")
+                                Text("Low").tag("low")
+                                Text("Medium").tag("medium")
+                                Text("High").tag("high")
+                            }
+                            Text("Only for reasoning models. Low is fastest.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Stepper(value: $viewModel.cleanupTimeoutSeconds, in: 2...20, step: 1) {
+                        Text("Timeout: \(Int(viewModel.cleanupTimeoutSeconds)) s")
+                    }
+
+                    if !viewModel.cleanupProvider.isLocal {
+                        Text(viewModel.cleanupProvider == .custom
+                             ? "Your dictated text is sent to the endpoint above."
+                             : "Your dictated text is sent to \(viewModel.cleanupProvider.displayName). On free tiers, providers may use it to improve their models.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.controlBackgroundColor).opacity(0.3))
+                .cornerRadius(12)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Test")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text("Runs the real cleanup on a sample. The first request to a local model can be slow while it loads.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Picker("Sample", selection: $cleanupSampleSelection) {
+                        ForEach(CleanupSamples.all) { sample in
+                            Text(sample.title).tag(sample.id)
+                        }
+                        Text("Your own text").tag(Self.customSampleID)
+                    }
+
+                    if cleanupSampleSelection == Self.customSampleID {
+                        TextField("Type a messy transcript", text: $cleanupCustomText, axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+                            .lineLimit(2...5)
+                    } else {
+                        Text(cleanupTestText)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .textSelection(.enabled)
+                    }
+
+                    HStack {
+                        Button("Test") {
+                            let text = cleanupTestText
+                            Task { await viewModel.runCleanupTest(text) }
+                        }
+                        .disabled(viewModel.isRunningCleanupTest || cleanupTestText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        if viewModel.isRunningCleanupTest {
+                            ProgressView().controlSize(.small)
+                        }
+                    }
+
+                    if let result = viewModel.cleanupTestResult {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(result.output)
+                                .font(.subheadline)
+                                .textSelection(.enabled)
+                                .padding(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.textBackgroundColor).opacity(0.5))
+                                .cornerRadius(6)
+                            Text(cleanupTestCaption(result))
+                                .font(.caption)
+                                .foregroundColor(result.skipReason == nil ? .secondary : .orange)
+                        }
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.controlBackgroundColor).opacity(0.3))
+                .cornerRadius(12)
+            }
+            .padding()
+        }
+    }
+
+    private func cleanupTestCaption(_ result: SettingsViewModel.CleanupTestResult) -> String {
+        guard let reason = result.skipReason else { return "\(result.milliseconds) ms" }
+        let explanation: String
+        switch reason {
+        case .disabled: explanation = "cleanup is disabled"
+        case .emptyInput: explanation = "nothing to clean"
+        case .noModel: explanation = "no model selected"
+        case .coolingDown: explanation = "cooling down after a rate limit"
+        case .timeout: explanation = "timed out"
+        case .rateLimited: explanation = "rate limited"
+        case .failed: explanation = result.httpStatus.map { "the request failed: HTTP \($0)" } ?? "the request failed"
+        case .rejectedOutput: explanation = "the model's output was rejected"
+        }
+        return "Fell back to the raw text: \(explanation) (\(result.milliseconds) ms)"
     }
 
     private func addVocabularyWord() {

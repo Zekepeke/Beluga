@@ -26,6 +26,7 @@ class IndicatorViewModel: ObservableObject {
     @Published var state: RecordingState = .idle
     @Published var isBlinking = false
     @Published var isConfirmingCancel = false
+    @Published var isCleaning = false
     @Published var recorder: AudioRecorder = .shared
     
     var recordingStartedAt: Date?
@@ -241,6 +242,7 @@ class IndicatorViewModel: ObservableObject {
                     throw CancellationError()
                 }
 
+                let cleanupConfig = CleanupConfig.current()
                 let text = try await transcriptionService.transcribeAudio(
                     url: tempURL,
                     settings: Settings(),
@@ -256,6 +258,12 @@ class IndicatorViewModel: ObservableObject {
                     try? FileManager.default.removeItem(at: tempURL)
                     print("No speech detected, dictation discarded")
                 } else {
+                    let text = await self.cleanedText(text, config: cleanupConfig)
+                    try Task.checkCancellation()
+                    guard self.decodingSessionID == sessionID else {
+                        throw CancellationError()
+                    }
+
                     let timestamp = Date()
                     let recordingId = UUID()
                     let fileName = Recording.fileName(for: recordingId)
@@ -305,6 +313,20 @@ class IndicatorViewModel: ObservableObject {
 
             self.finishDecoding(sessionID: sessionID)
         }
+    }
+
+    /// Runs LLM cleanup when enabled; any failure returns the raw text.
+    private func cleanedText(_ text: String, config: CleanupConfig) async -> String {
+        guard config.enabled else { return text }
+        isCleaning = true
+        defer { isCleaning = false }
+        let outcome = await CleanupPipeline.run(
+            text: text,
+            config: config,
+            cleaner: CleanupPipeline.makeCleaner(config: config),
+            cooldown: .shared
+        )
+        return outcome.text
     }
 
     private func finishDecoding(sessionID: UUID) {
@@ -503,7 +525,7 @@ struct IndicatorWindow: View {
                         .scaleEffect(0.7)
                         .frame(width: 24)
                     
-                    Text("Transcribing...")
+                    Text(viewModel.isCleaning ? "Cleaning..." : "Transcribing...")
                         .font(.system(size: 13, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
