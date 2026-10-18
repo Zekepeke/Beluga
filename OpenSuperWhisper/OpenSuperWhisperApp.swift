@@ -38,11 +38,14 @@ struct OpenSuperWhisperApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {}
+            CommandGroup(after: .textEditing) {
+                Button("Find") {
+                    NotificationCenter.default.post(name: .focusSearch, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
+            }
             CommandGroup(replacing: .appSettings) {
                 Button("Settings...") {
-                    if let delegate = NSApplication.shared.delegate as? AppDelegate {
-                        delegate.showMainWindow()
-                    }
                     NotificationCenter.default.post(name: .openSettings, object: nil)
                 }
                 .keyboardShortcut(",", modifiers: .command)
@@ -144,6 +147,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
             name: NSWindow.willCloseNotification,
             object: nil
         )
+
+        // Cmd-, and anything else that posts .openSettings opens (or refocuses) the one Settings window.
+        NotificationCenter.default.addObserver(
+            forName: .openSettings, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { SettingsWindowController.shared.show() }
+        }
 
         let prefs = AppPreferences.shared
         if prefs.startHiddenInMenuBar && prefs.hasCompletedOnboarding {
@@ -435,9 +445,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     
     /// The WindowGroup window must be told apart from the other windows the
     /// app creates: the status item's NSStatusBarWindow, the borderless
-    /// indicator NSPanel and SwiftUI sheet host windows.
+    /// indicator NSPanel, SwiftUI sheet host windows and the Settings window.
     static func isMainAppWindow(_ window: NSWindow) -> Bool {
-        !(window is NSPanel) && !window.isSheet && window.styleMask.contains(.titled)
+        isMainAppWindow(
+            isPanel: window is NSPanel,
+            isSheet: window.isSheet,
+            isTitled: window.styleMask.contains(.titled),
+            identifier: window.identifier?.rawValue
+        )
+    }
+
+    /// The pure rule behind `isMainAppWindow(_:)`. Windows the app tags with a known identifier
+    /// (Settings) are never the main window, so they never get its translucency.
+    static func isMainAppWindow(isPanel: Bool, isSheet: Bool, isTitled: Bool, identifier: String?) -> Bool {
+        guard !isPanel, !isSheet, isTitled else { return false }
+        return !WindowIdentifier.nonMain.contains(identifier ?? "")
     }
 
     private static func resolveMainWindow() -> NSWindow? {
@@ -458,6 +480,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ObservableOb
     private func adoptMainWindow(_ window: NSWindow) {
         mainWindow = window
         window.delegate = self
+        SearchTitlebarAccessoryController.attach(to: window)
         window.minSize = NSSize(width: 450, height: 400)
         window.maxSize = NSSize(width: 450, height: 900)
         applyWindowAppearance(to: window)

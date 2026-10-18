@@ -87,6 +87,8 @@ class ShortcutManager {
     }
     
     func handleEscape() {
+        // Esc closes the main window's search field first; it must not also cancel a recording.
+        guard SearchEscapeGuard.shared.shouldCancelRecording() else { return }
         if IndicatorWindowManager.shared.requestCancel() {
             activeVm = nil
         }

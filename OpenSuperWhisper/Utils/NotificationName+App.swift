@@ -5,5 +5,6 @@ extension Notification.Name {
     static let hotkeySettingsChanged = Notification.Name("HotkeySettingsChanged")
     static let indicatorWindowDidHide = Notification.Name("IndicatorWindowDidHide")
     static let indicatorWindowWillShow = Notification.Name("IndicatorWindowWillShow")
+    static let focusSearch = Notification.Name("FocusSearch")
     static let openSettings = Notification.Name("OpenSettings")
 }

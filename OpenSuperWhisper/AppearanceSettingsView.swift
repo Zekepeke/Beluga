@@ -121,6 +121,62 @@ private struct WindowTintSlider: View {
     }
 }
 
+/// A history card, the search bar and a button drawn with the real surfaces, on the window color.
+private struct CardsPreview: View {
+    @ObservedObject var appearance: AppearanceStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let surfaces = appearance.surfaces(for: colorScheme)
+        let border = Color(hex: surfaces.border)
+        let window = appearance.windowBaseColor(for: colorScheme)
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                Text("Search in transcriptions")
+                Spacer()
+            }
+            .foregroundColor(Color(hex: surfaces.secondaryText))
+            .padding(10)
+            .background(Color(hex: surfaces.panel))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(border, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("What am I taking a screenshot of? Also I do not have to install")
+                    .foregroundColor(Color(hex: surfaces.cardText))
+                Rectangle().fill(Color(hex: surfaces.separator)).frame(height: 1)
+                Text("October 18, 2026 · 12:47 AM · 12s")
+                    .font(.caption)
+                    .foregroundColor(Color(hex: surfaces.cardSecondaryText))
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(hex: surfaces.card))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(border, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            HStack {
+                Text("Live preview")
+                    .font(.caption)
+                    .foregroundColor(Color(hex: surfaces.secondaryText))
+                Spacer()
+                Image(systemName: "gear")
+                    .font(.title3)
+                    .foregroundColor(Color(hex: surfaces.secondaryText))
+                    .frame(width: 32, height: 32)
+                    .background(Color(hex: surfaces.panel))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(border, lineWidth: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding(16)
+        .background(window)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(border.opacity(0.6), lineWidth: 1))
+    }
+}
+
 struct AppearanceSettingsView: View {
     @ObservedObject private var appearance = AppearanceStore.shared
     @Environment(\.colorScheme) private var colorScheme
@@ -146,6 +202,7 @@ struct AppearanceSettingsView: View {
             VStack(spacing: 20) {
                 indicatorCard
                 accentCard
+                cardsCard
                 windowCard
 
                 HStack {
@@ -198,7 +255,7 @@ struct AppearanceSettingsView: View {
                 .frame(width: 280)
             }
         }
-        .cardStyle()
+        .settingsCard()
     }
 
     private var accentCard: some View {
@@ -211,7 +268,37 @@ struct AppearanceSettingsView: View {
                 ColorSwatchRow(options: accentColors, hex: $appearance.accentHex, customFallback: .accentColor)
             }
         }
-        .cardStyle()
+        .settingsCard()
+    }
+
+    private var cardSwatches: [SwatchOption] {
+        let matched = appearance.surfaces(for: colorScheme, card: .matchWindow).card
+        return [SwatchOption(label: "Match window", hex: "", fill: Color(hex: matched))]
+            + AppearanceDefaults.cardPresets.map { SwatchOption(label: $0.name, hex: $0.hex, fill: Color(hex: $0.hex)) }
+    }
+
+    private var cardsCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Cards")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            row("Card color", caption: "Match window follows the window color in light and dark.") {
+                HStack(spacing: 10) {
+                    ColorSwatchRow(
+                        options: cardSwatches,
+                        hex: $appearance.cardColorHex,
+                        customFallback: Color(hex: appearance.surfaces(for: colorScheme).card)
+                    )
+                    Button("Reset") { appearance.cardColorHex = "" }
+                        .controlSize(.small)
+                        .disabled(appearance.cardColorHex.isEmpty)
+                }
+            }
+
+            CardsPreview(appearance: appearance)
+        }
+        .settingsCard()
     }
 
     private var windowCard: some View {
@@ -229,20 +316,18 @@ struct AppearanceSettingsView: View {
                 .frame(width: 280)
             }
 
-            if appearance.windowStyle != .system {
-                row(appearance.windowStyle == .translucent ? "Tint color" : "Color",
-                    caption: "Reset follows light and dark mode.") {
-                    HStack(spacing: 8) {
-                        CircleColorPicker(
-                            color: appearance.windowBaseColor(for: colorScheme),
-                            isSelected: false,
-                            fallback: .clear,
-                            onPick: { appearance.windowColorHex = ColorHex.hex(from: $0) ?? appearance.windowColorHex }
-                        )
-                        Button("Reset") { appearance.windowColorHex = "" }
-                            .controlSize(.small)
-                            .disabled(appearance.windowColorHex.isEmpty)
-                    }
+            row(appearance.windowStyle == .translucent ? "Tint color" : "Color",
+                caption: "Reset follows light and dark mode.") {
+                HStack(spacing: 8) {
+                    CircleColorPicker(
+                        color: appearance.windowBaseColor(for: colorScheme),
+                        isSelected: false,
+                        fallback: .clear,
+                        onPick: { appearance.windowColorHex = ColorHex.hex(from: $0) ?? appearance.windowColorHex }
+                    )
+                    Button("Reset") { appearance.windowColorHex = "" }
+                        .controlSize(.small)
+                        .disabled(appearance.windowColorHex.isEmpty)
                 }
             }
 
@@ -252,7 +337,7 @@ struct AppearanceSettingsView: View {
                 }
             }
         }
-        .cardStyle()
+        .settingsCard()
     }
 
     private func row<Content: View>(_ title: String, caption: String? = nil, @ViewBuilder content: () -> Content) -> some View {
@@ -269,16 +354,6 @@ struct AppearanceSettingsView: View {
             Spacer()
             content()
         }
-    }
-}
-
-private extension View {
-    func cardStyle() -> some View {
-        self
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.controlBackgroundColor).opacity(0.3))
-            .cornerRadius(12)
     }
 }
 

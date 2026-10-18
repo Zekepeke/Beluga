@@ -41,6 +41,7 @@ final class AppearanceStore: ObservableObject {
         static let windowBackgroundStyle = "windowBackgroundStyle"
         static let windowBackgroundHex = "windowBackgroundHex"
         static let windowOpacity = "windowOpacity"
+        static let cardColorHex = "cardColorHex"
     }
 
     private let defaults: UserDefaults
@@ -66,6 +67,10 @@ final class AppearanceStore: ObservableObject {
     @Published var windowColorHex: String {
         didSet { defaults.set(windowColorHex, forKey: Keys.windowBackgroundHex) }
     }
+    /// Empty means the card color follows the window color.
+    @Published var cardColorHex: String {
+        didSet { defaults.set(cardColorHex, forKey: Keys.cardColorHex) }
+    }
     /// Tint strength for the translucent window, 60 to 100%.
     let tint: WindowTintModel
     var windowOpacity: Double {
@@ -79,8 +84,15 @@ final class AppearanceStore: ObservableObject {
         indicatorColorHex = defaults.string(forKey: Keys.indicatorColorHex) ?? AppearanceDefaults.indicatorColorHex
         indicatorSize = IndicatorSize(stored: defaults.string(forKey: Keys.indicatorSize) ?? "")
         indicatorBackground = IndicatorBackgroundStyle(stored: defaults.string(forKey: Keys.indicatorBackgroundStyle) ?? "")
+        let storedStyle = defaults.string(forKey: Keys.windowBackgroundStyle) ?? ""
+        if WindowBackgroundStyle.isRetired(stored: storedStyle) {
+            // The removed System option reads as the default look: Translucent at 80%.
+            defaults.set(WindowBackgroundStyle.defaultValue.rawValue, forKey: Keys.windowBackgroundStyle)
+            defaults.set(AppearanceDefaults.windowOpacity, forKey: Keys.windowOpacity)
+        }
         windowStyle = WindowBackgroundStyle(stored: defaults.string(forKey: Keys.windowBackgroundStyle) ?? "")
         windowColorHex = defaults.string(forKey: Keys.windowBackgroundHex) ?? ""
+        cardColorHex = defaults.string(forKey: Keys.cardColorHex) ?? AppearanceDefaults.cardColorHex
         tint = WindowTintModel(defaults: defaults)
     }
 
@@ -91,6 +103,7 @@ final class AppearanceStore: ObservableObject {
         indicatorBackground = IndicatorBackgroundStyle.defaultValue
         windowStyle = WindowBackgroundStyle.defaultValue
         windowColorHex = ""
+        cardColorHex = AppearanceDefaults.cardColorHex
         windowOpacity = AppearanceDefaults.windowOpacity
     }
 
@@ -102,28 +115,52 @@ final class AppearanceStore: ObservableObject {
     /// nil means today's recording red.
     var indicatorDotColor: Color? { AppearanceResolver.color(fromHex: indicatorColorHex) }
 
-    /// The window color for the scheme, or nil under the system style.
-    func windowBaseColor(for scheme: ColorScheme) -> Color? {
-        AppearanceResolver.windowBaseHex(style: windowStyle, customHex: windowColorHex, scheme: scheme)
-            .flatMap { AppearanceResolver.color(fromHex: $0) }
+    func windowBaseHex(for scheme: ColorScheme) -> String {
+        AppearanceResolver.windowBaseHex(customHex: windowColorHex, scheme: scheme)
+    }
+
+    /// The window color for the scheme. Always a Beluga color, never a macOS system color.
+    func windowBaseColor(for scheme: ColorScheme) -> Color {
+        AppearanceResolver.color(fromHex: windowBaseHex(for: scheme)) ?? .clear
     }
 
     /// Accent for explicit tints (e.g. toggle styles that name their color).
     var accent: Color { accentColor ?? .accentColor }
 
-    /// The window fill: system paints the system color, solid its own color
-    /// fully opaque, translucent its own color as a tint over the blur.
+    /// The window fill: solid paints the window color fully opaque,
+    /// translucent paints it as a tint over the blur.
     func windowFill(for scheme: ColorScheme) -> (color: Color, opacity: Double) {
-        let base = windowBaseColor(for: scheme) ?? ThemePalette.windowBackground(scheme)
+        let base = windowBaseColor(for: scheme)
         switch windowStyle {
-        case .system, .solid: return (base, 1)
+        case .solid: return (base, 1)
         case .translucent: return (base, windowOpacity)
         }
     }
 
     /// What the indicator's Solid style fills with: the window color at the moment.
     func indicatorSolidColor(for scheme: ColorScheme) -> Color {
-        windowBaseColor(for: scheme) ?? ThemePalette.windowBackground(scheme)
+        windowBaseColor(for: scheme)
+    }
+
+    // MARK: - Surfaces
+
+    var cardOption: SurfacePalette.CardOption {
+        ColorHex.normalized(cardColorHex).map { .custom(hex: $0) } ?? .matchWindow
+    }
+
+    /// Cards, panels, borders and text for the scheme, derived from the window color.
+    /// Pass `card` to preview another card option (for example "Match window" while a custom color is set).
+    func surfaces(for scheme: ColorScheme, card: SurfacePalette.CardOption? = nil) -> SurfacePalette.Output {
+        let window = windowBaseHex(for: scheme)
+        let accent = ColorHex.normalized(accentHex)
+            ?? ColorHex.hex(from: Color(nsColor: .controlAccentColor))
+            ?? AppearanceDefaults.beluga
+        return SurfacePalette.resolve(windowHex: window, scheme: scheme, accentHex: accent, card: card ?? cardOption)
+    }
+
+    /// Alpha for cards and panels in the main window. Settings is always opaque.
+    var surfaceOpacity: Double {
+        AppearanceResolver.surfaceOpacity(style: windowStyle)
     }
 
     var isWindowTransparent: Bool {

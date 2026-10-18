@@ -6,13 +6,13 @@ struct AppWindowBackground: View {
     @ObservedObject private var appearance = AppearanceStore.shared
     @ObservedObject private var tint = AppearanceStore.shared.tint
     @Environment(\.colorScheme) private var colorScheme
-    /// The settings sheet is its own window and stays readable: full opacity, no blur.
+    /// Settings stays readable: the Beluga window color for the scheme, full opacity, no blur,
+    /// whatever style the main window uses.
     var opaque = false
 
     var body: some View {
         if opaque {
-            // Keeps the sheet's look under System and Translucent.
-            appearance.windowBaseColor(for: colorScheme) ?? Color(nsColor: .windowBackgroundColor)
+            appearance.windowBaseColor(for: colorScheme)
         } else {
             let fill = appearance.windowFill(for: colorScheme)
             ZStack {

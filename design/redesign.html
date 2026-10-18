@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beluga Redesign Board</title>
+<style>
+:root {
+  --page: #f4f5f7; --ink: #1c1d20; --muted: #6b6f76; --rule: #d9dce1; --pcard: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --page: #17181a; --ink: #ececee; --muted: #9a9ea6; --rule: #2c2e32; --pcard: #202225; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 32px 24px 96px; }
+h1 { font-size: 28px; margin: 0 0 4px; }
+h2 { font-size: 20px; margin: 56px 0 4px; padding-top: 24px; border-top: 1px solid var(--rule); }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 28px 0 10px; }
+p.note { color: var(--muted); margin: 2px 0 12px; max-width: 84ch; }
+.row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.cap { font-size: 12px; color: var(--muted); margin-top: 8px; max-width: 60ch; }
+.tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 9px; background: var(--rule); color: var(--muted); margin-left: 6px; vertical-align: 2px; }
+.pick { background: #2F7FB8; color: #fff; }
+.today { outline: 2px dashed var(--muted); outline-offset: 4px; border-radius: 6px; }
+img.shot { display: block; width: 360px; max-width: 100%; }
+table.t { border-collapse: collapse; font-size: 13px; }
+table.t td, table.t th { padding: 4px 10px; text-align: left; border-bottom: 1px solid var(--rule); }
+
+/* ---------- palettes ---------- */
+.light-ui { --wtint:#E6EFF6; --card:#FFFFFF; --panel:#F2F6FA; --border:#D5E0EA; --txt:#14202B; --sub:#5B6B7A;
+  --acc:#2F7FB8; --link:#2F7FB8; --sbg:#DCE8F1; --shadow:rgba(20,40,60,.14); --chip:rgba(47,127,184,.12); --ctrl:#FFFFFF; --ctrlb:#C9D6E1; }
+.dark-ui  { --wtint:#161D23; --card:#1F2830; --panel:#27323B; --border:#2F3C47; --txt:#E8EEF3; --sub:#93A3B1;
+  --acc:#2F7FB8; --link:#4A9AD4; --sbg:#11171B; --shadow:rgba(0,0,0,.45); --chip:rgba(74,154,212,.16); --ctrl:#2B3741; --ctrlb:#3A4854; }
+/* today's colors, recreated from ThemePalette */
+.light-ui.today-vars { --wtint:#E6EFF6; --card:#FFFFFF; --panel:#F2F5FA; --border:#DBE0EB; --txt:#000; --sub:#8a8a8e; --link:#000; --chip:rgba(10,132,255,.14); }
+
+/* ---------- backdrops (the "desktop" behind translucent windows) ---------- */
+.bd { position: relative; border-radius: 14px; padding: 26px; overflow: hidden; display: inline-block; }
+.bd.light { background:
+  repeating-linear-gradient(0deg, rgba(0,0,0,.10) 0 2px, transparent 2px 14px),
+  linear-gradient(135deg, #f6d5a6 0%, #e89ab0 40%, #8fb6e8 100%); }
+.bd.dark { background:
+  repeating-linear-gradient(0deg, rgba(255,255,255,.10) 0 2px, transparent 2px 14px),
+  linear-gradient(135deg, #1d2a44 0%, #5b3a78 45%, #123a4a 100%); }
+.bd.busy.light { background:
+  repeating-linear-gradient(90deg, rgba(0,0,0,.35) 0 6px, transparent 6px 22px),
+  repeating-linear-gradient(0deg, rgba(0,0,0,.35) 0 6px, transparent 6px 22px), #fff; }
+.bd.busy.dark { background:
+  repeating-linear-gradient(90deg, rgba(255,255,255,.45) 0 6px, transparent 6px 22px),
+  repeating-linear-gradient(0deg, rgba(255,255,255,.45) 0 6px, transparent 6px 22px), #000; }
+
+/* ---------- main window mock ---------- */
+.win { --ts: .8; --ca: .92; width: 450px; height: 650px; border-radius: 14px; position: relative; overflow: hidden;
+  font-size: 13px; color: var(--txt); display: flex; flex-direction: column;
+  box-shadow: 0 18px 40px rgba(0,0,0,.3), 0 0 0 .5px rgba(0,0,0,.4); }
+.win .bgl { position: absolute; inset: 0; backdrop-filter: blur(30px) saturate(1.6);
+  background: color-mix(in srgb, var(--wtint) calc(var(--ts) * 100%), transparent); }
+.win > *:not(.bgl) { position: relative; }
+.tl { height: 40px; flex: none; display: flex; gap: 8px; padding: 14px 16px 0; }
+.tl i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.tl i:nth-child(1){background:#ff5f57}.tl i:nth-child(2){background:#febc2e}.tl i:nth-child(3){background:#28c840}
+.ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.search { margin: 0 16px; height: 38px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--sub);
+  background: color-mix(in srgb, var(--panel) calc(var(--ca) * 100%), transparent); }
+.list { flex: 1; overflow: hidden; padding: 16px 16px 0; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px); mask-image: linear-gradient(to bottom, transparent 0, #000 18px); }
+.rcard { background: color-mix(in srgb, var(--card) calc(var(--ca) * 100%), transparent); padding: 14px 16px; margin-bottom: 8px; }
+.rcard p { margin: 0; font-size: 14px; line-height: 1.4; }
+.rcard .meta { margin-top: 10px; padding-top: 8px; color: var(--sub); font-size: 12px; }
+.showmore { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; padding: 4px 10px; border-radius: 7px; background: var(--chip); color: var(--link); font-size: 12px; }
+.bottom { flex: none; padding: 8px 16px 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.recwrap { height: 56px; display: flex; align-items: center; }
+.rec { width: 48px; height: 48px; border-radius: 50%; background: var(--acc); }
+.bar { width: 100%; display: flex; justify-content: space-between; align-items: flex-end; }
+.hints { font-size: 11px; color: var(--sub); display: flex; flex-direction: column; gap: 6px; }
+.hints div { display: flex; gap: 6px; align-items: center; }
+.btns { display: flex; gap: 10px; }
+.btn { width: 32px; height: 32px; display: grid; place-items: center; color: var(--sub);
+  background: color-mix(in srgb, var(--panel) calc(var(--ca) * 100%), transparent); }
+
+/* Style T: today (recreated) */
+.st-T .search { border-radius: 20px; border: 1px solid var(--border); }
+.st-T .rcard { border-radius: 8px; border: 1px solid var(--border); }
+.st-T .rcard .meta { border-top: 1px solid var(--border); }
+.st-T .btn { border-radius: 8px; border: 1px solid var(--border); }
+.st-T .rec { background: linear-gradient(135deg, rgba(89,153,235,.8), rgba(89,153,235,.9)); box-shadow: 0 0 12px rgba(89,153,235,.3); }
+
+/* Style A: soft cards */
+.st-A .search { border-radius: 20px; border: 1px solid var(--border); }
+.st-A .rcard { border-radius: 12px; border: 1px solid var(--border); padding: 14px 16px; }
+.st-A .rcard .meta { border-top: 1px solid var(--border); }
+.st-A .btn { border-radius: 8px; border: 1px solid var(--border); }
+.st-A .rec { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 18%, transparent), 0 4px 14px color-mix(in srgb, var(--acc) 35%, transparent); }
+
+/* ---------- directions D, E, F ---------- */
+.bd.gray.light { background: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 14px), #c9ccd1; }
+.bd.gray.dark  { background: repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 2px, transparent 2px 14px), #45484e; }
+.topbar { height: 44px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 16px; }
+.topbar .tl { height: auto; padding: 0; }
+.ibtn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: var(--sub); flex: none; }
+.btn2 { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: var(--sub); flex: none;
+  background: color-mix(in srgb, var(--panel) calc(var(--ca) * 100%), transparent); border: 1px solid var(--border); }
+.bot2 { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 16px; }
+.recwrap2 { position: relative; }
+.recwrap2 .rec { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 18%, transparent), 0 4px 14px color-mix(in srgb, var(--acc) 35%, transparent); }
+.tip { position: absolute; left: 50%; bottom: 62px; transform: translateX(-50%); white-space: nowrap; background: var(--card); color: var(--txt);
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; font-size: 12px; box-shadow: 0 4px 14px var(--shadow); text-align: center; }
+.tip small { display: block; color: var(--sub); font-size: 11px; }
+.list2 { flex: 1; overflow: hidden; padding: 0 16px; }
+.day { font-size: 11.5px; font-weight: 600; color: var(--sub); text-transform: uppercase; letter-spacing: .05em; padding: 14px 6px 6px; }
+.jrow { display: grid; grid-template-columns: 62px 1fr; gap: 10px; padding: 10px 6px; border-top: 1px solid var(--border); position: relative; }
+.day + .jrow { border-top: 0; }
+.jrow .tm { color: var(--sub); font-size: 11.5px; line-height: 1.35; }
+.jrow .tm b { display: block; font-weight: 500; color: var(--txt); font-size: 12px; }
+.jrow p { margin: 0; font-size: 14px; line-height: 1.4; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hov { background: color-mix(in srgb, var(--panel) 85%, transparent); border-radius: 8px; border-top-color: transparent !important; }
+.jrow.hov p { padding-right: 116px; }
+.acts { position: absolute; right: 6px; top: 6px; display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow); }
+.acts .ibtn { width: 26px; height: 26px; }
+.acts .ibtn.play, .lbar .ibtn.play, .xb.play { color: var(--link); }
+.emptyb { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; color: var(--sub); padding: 0 40px; }
+.emptyb .big { width: 52px; height: 52px; border-radius: 50%; background: var(--chip); color: var(--link); display: grid; place-items: center; margin-bottom: 6px; }
+.emptyb .big .ico { width: 24px; height: 24px; }
+.emptyb b { color: var(--txt); font-size: 15px; }
+.emptyb kbd { font: 12px/1 ui-monospace, monospace; background: var(--panel); border: 1px solid var(--border); color: var(--txt); padding: 3px 7px; border-radius: 6px; }
+.emptyb .hintrow { display: flex; gap: 6px; align-items: center; margin-top: 10px; font-size: 12px; }
+.lab { font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--sub); }
+.latest { margin: 12px 16px 0; padding: 16px 18px; border-radius: 14px; flex: none;
+  background: color-mix(in srgb, var(--card) calc(var(--ca) * 100%), transparent); border: 1px solid var(--border); }
+.latest p { margin: 8px 0 0; font-size: 16px; line-height: 1.45; }
+.lbar { display: flex; align-items: center; gap: 6px; margin-top: 14px; }
+.copybtn { display: inline-flex; gap: 6px; align-items: center; height: 30px; padding: 0 14px; border-radius: 8px; background: var(--acc); color: #fff; font-weight: 600; font-size: 13px; margin-right: 4px; }
+.lab2 { padding: 16px 22px 4px; }
+.crow { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-top: 1px solid var(--border); position: relative; min-height: 38px; }
+.lab2 + .list2 .crow:first-child { border-top: 0; }
+.crow .tx { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.crow .tm { color: var(--sub); font-size: 11.5px; flex: none; }
+.crow.hov .acts { position: static; box-shadow: none; }
+.fbar { display: flex; gap: 10px; align-items: center; padding: 0 16px 6px; flex: none; position: relative; }
+.fbar .search { margin: 0; flex: 1; border-radius: 10px; border: 1px solid var(--border); }
+.rectop { width: 38px; height: 38px; border-radius: 50%; background: var(--acc); color: #fff; display: grid; place-items: center; flex: none; position: relative;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 18%, transparent); margin-right: 3px; }
+.rectop .tip { top: 48px; bottom: auto; left: auto; right: -6px; transform: none; }
+.frow { padding: 9px 12px; border-radius: 10px; position: relative; }
+.frow + .frow { border-top: 1px solid var(--border); }
+.frow .l1 { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frow .l2 { color: var(--sub); font-size: 11.5px; margin-top: 1px; }
+.frow.hov .l1 { padding-right: 112px; }
+.frow.exp { background: color-mix(in srgb, var(--card) calc(var(--ca) * 100%), transparent); border: 1px solid var(--border); margin: 4px 0; }
+.frow.exp .l1 { white-space: normal; font-size: 14px; line-height: 1.4; }
+.xbar { display: flex; gap: 6px; margin-top: 10px; }
+.xb { display: inline-flex; gap: 5px; align-items: center; height: 26px; padding: 0 10px; border-radius: 7px; background: var(--panel); border: 1px solid var(--border); font-size: 12px; }
+.xb .ico { width: 13px; height: 13px; }
+.foot { flex: none; display: flex; justify-content: space-between; align-items: center; padding: 8px 16px 12px; border-top: 1px solid var(--border); color: var(--sub); font-size: 12px; }
+.foot .m { display: flex; gap: 6px; align-items: center; }
+.foot .r { display: flex; gap: 4px; }
+.strip { height: 52px !important; }
+
+/* ---------- settings / appearance window mock ---------- */
+.swin { width: 820px; height: 600px; border-radius: 12px; overflow: hidden; display: flex; background: var(--wtint); color: var(--txt);
+  box-shadow: 0 18px 40px rgba(0,0,0,.3), 0 0 0 .5px rgba(0,0,0,.4); font-size: 13px; position: relative; }
+.side { width: 190px; flex: none; background: var(--sbg); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--border); }
+.side .tl { padding: 0 6px 18px; height: auto; }
+.side .it { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: 8px; color: var(--txt); }
+.side .it.on { background: var(--acc); color: #fff; }
+.side .it .ico { stroke-width: 1.6; }
+.side .grow { flex: 1; }
+.side .gh { color: var(--sub); font-size: 11px; padding: 0 10px; }
+.pane { flex: 1; overflow: hidden; padding: 18px 22px 0; position: relative; }
+.pane h4 { margin: 0 0 14px; font-size: 20px; }
+.pane::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: linear-gradient(to bottom, transparent, var(--wtint)); }
+.scard { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+.scard h5 { margin: 0 0 10px; font-size: 14px; }
+.srow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 7px 0; }
+.srow + .srow { border-top: 1px solid var(--border); }
+.srow .l small { display: block; color: var(--sub); font-size: 11.5px; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+.seg span { padding: 3px 12px; border-radius: 6px; color: var(--sub); font-size: 12px; }
+.seg span.on { background: var(--ctrl); color: var(--txt); box-shadow: 0 1px 2px var(--shadow); }
+.tog { width: 34px; height: 20px; border-radius: 10px; background: var(--ctrlb); position: relative; flex: none; }
+.tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.tog.on { background: var(--acc); } .tog.on::after { left: 16px; }
+.field { background: var(--ctrl); border: 1px solid var(--ctrlb); border-radius: 6px; padding: 3px 10px; min-width: 120px; }
+.disc { display: flex; align-items: center; gap: 6px; color: var(--sub); font-weight: 600; margin: 4px 0 10px; }
+.sw { display: inline-flex; gap: 8px; align-items: center; }
+.sw i { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(128,128,128,.45); display: block; position: relative; }
+.sw i.sel::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--txt); }
+.sw i.rainbow { background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
+.pbtn { padding: 3px 12px; border-radius: 6px; background: var(--ctrl); border: 1px solid var(--ctrlb); font-size: 12px; }
+.pbtn.dis { opacity: .45; }
+.prev { border-radius: 10px; padding: 16px; margin-top: 8px; background: color-mix(in srgb, var(--wtint) 100%, transparent); border: 1px dashed var(--border); }
+.prev .search { margin: 0 0 12px; }
+
+/* ---------- palette swatches ---------- */
+.sws { display: grid; grid-template-columns: repeat(7, 120px); gap: 10px; }
+.swc { border-radius: 10px; overflow: hidden; border: 1px solid var(--rule); background: var(--pcard); font-size: 11.5px; }
+.swc b { display: block; height: 56px; }
+.swc div { padding: 6px 8px; } .swc code { font-size: 11px; color: var(--muted); }
+
+.sep-note { font-size: 12px; color: var(--muted); }
+.chiprow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ld { width: 220px; height: 120px; border-radius: 10px; position: relative; overflow: hidden; display: grid; place-items: center; color: #fff; font-weight: 600; }
+.shim { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--panel), color-mix(in srgb, var(--txt) 12%, var(--panel)), var(--panel)); width: 200px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Beluga Redesign Board</h1>
+<p class="note">Phase 6. Everything is a mockup drawn from the proposed rules, not from the real app: real desktops have text and windows behind the see-through surfaces, and macOS renders the blur slightly differently. Main window mocks use the default Translucent 80% over a backdrop. Settings and Appearance mocks are opaque. Annotate anything: sizes, colors, spacing, wording.</p>
+<p class="note"><b>Decided already:</b> Settings becomes its own opaque window (about 820x600, sidebar 190pt), six sections, dark direction approved (blue-gray cards lighter than the window, <code>#4A9AD4</code> for text-sized accents, <code>#2F7FB8</code> for fills), no Appearance mode switch, no card style picker. <b>Locked:</b> dark palette is Blue-gray. <b>Open:</b> approval of the combined main-window layout below.</p>
+
+<h2>1. Today</h2>
+<p class="note">Dark is your real screenshot. Light is recreated from <code>ThemePalette</code> (white cards, <code>#F2F5FA</code> panels). In dark, the near-black cards and gray controls come from <code>NSColor</code> system colors that ignore the window tint, which is the clash.</p>
+<div class="row">
+  <div><div class="today"><img class="shot" src="today-window.png" alt="Today, dark"></div><div class="cap">Today, dark (screenshot).</div></div>
+  <div><div id="today-light"></div><div class="cap">Today, light (recreated).</div></div>
+</div>
+
+<h2>2. Palette <span class="tag pick">light approved, dark locked: Blue-gray</span></h2>
+<p class="note">Rules, not fixed values: the card, panel and border are derived from whatever window color is set, so a custom window color still gets matching cards. These are the defaults. Contrast ratios are computed live from the hex values.</p>
+<div id="palettes"></div>
+
+<h3>Do cards still separate from the window at 60% Translucent?</h3>
+<p class="note">Worst case: tint strength at the 60% minimum over a high-contrast backdrop (grid lines and a plain black or white field). Cards are 92% opaque over the window so text stays readable. Judge by eye whether the card edge still reads without the border.</p>
+<div class="row" id="sep60"></div>
+
+<h2>3. Main window layout: latest pinned, journal below</h2>
+<p class="note">E and D combined. The latest recording is pinned at the top (large text, prominent Copy, its other actions beside it, 1pt border). Everything older is the journal below it under Today, Yesterday and full dates, with the latest never repeated. D's slim top bar (search icon that expands into a field), D's empty state and the bottom row are kept. Drawn in light and dark (Blue-gray), first Translucent 80% over a neutral gray desktop, then Solid. Each set shows the list with one row hovered, the empty state, and search expanded.</p>
+<p class="note"><b>Matches today's app (checked against <code>RecordingRow</code> and <code>TranscriptionView</code>):</b> the row actions are exactly play or stop (accent colored, red while playing), copy ("Copy entire text"), regenerate and delete, in that order, all secondary gray except play. In list rows they appear on hover, as today. Text is limited to 3 lines, and "Show more" or "Show less" appears only when the text is over 150 characters. Expanded text scrolls at 200pt. Search highlighting is unchanged. <b>One deliberate difference:</b> the pinned latest card shows its four actions all the time instead of on hover, because it is the primary item and Copy is its main button. Say if you want them hover-only there too.</p>
+<div id="main-layout"></div>
+
+<h2>4. Settings window <span class="tag pick">approved</span></h2>
+<p class="note">Its own opaque window, opened with Cmd-, and the existing .openSettings notification. Six sections, selected item uses the accent fill. Vocabulary and AI Cleanup stay adjacent. Clipboard &amp; Paste moves into General; Advanced becomes a disclosure under Transcription. The main window never shares translucency with it (match by window identifier).</p>
+<div class="row" id="settings"></div>
+
+<h2>5. Appearance tab with Cards <span class="tag pick">approved</span></h2>
+<p class="note">New Cards section between Accent and Window: Match window (default), a few swatches, custom picker, Reset, and a live preview of a history card, the search bar and a button on the window color. Indicator and Accent sections are collapsed here because they don't change.</p>
+<div class="row" id="appearance"></div>
+
+<h2>6. Empty state, shimmer and loading overlay <span class="tag pick">approved</span></h2>
+<p class="note">These move onto the theme surfaces. The loading overlay stops being flat <code>black 30%</code> and uses a tinted scrim with a card holding the spinner and text. (Drawn in the previous card style; they take whatever layout is chosen.)</p>
+<div class="row" id="extras"></div>
+</main>
+
+<script>
+const I = {
+  search: '<svg class="ico" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>',
+  mic: '<svg class="ico" viewBox="0 0 16 16"><rect x="6" y="1.5" width="4" height="8" rx="2"/><path d="M3.5 7.5a4.5 4.5 0 009 0M8 12v2.5"/></svg>',
+  trash: '<svg class="ico" viewBox="0 0 16 16"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4"/></svg>',
+  gear: '<svg class="ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/></svg>',
+  doc: '<svg class="ico" viewBox="0 0 16 16"><path d="M4 1.5h5.5L13 5v9.5H4z M9.5 1.5V5H13"/></svg>',
+  chev: '<svg class="ico" viewBox="0 0 16 16" style="width:11px;height:11px"><path d="M3 6l5 5 5-5"/></svg>',
+  chevr: '<svg class="ico" viewBox="0 0 16 16" style="width:11px;height:11px"><path d="M6 3l5 5-5 5"/></svg>',
+  general: '<svg class="ico" viewBox="0 0 16 16"><path d="M2 5h12M2 11h12"/><circle cx="6" cy="5" r="1.7" fill="currentColor"/><circle cx="10.5" cy="11" r="1.7" fill="currentColor"/></svg>',
+  models: '<svg class="ico" viewBox="0 0 16 16"><path d="M8 1.5l5.5 3v7L8 14.5l-5.5-3v-7zM2.5 4.5L8 8l5.5-3.5M8 8v6.5"/></svg>',
+  trans: '<svg class="ico" viewBox="0 0 16 16"><path d="M2 8v0M4.5 5v6M7 2.5v11M9.5 5v6M12 6.5v3M14.5 8v0"/></svg>',
+  vocab: '<svg class="ico" viewBox="0 0 16 16"><path d="M3 2.5h8a2 2 0 012 2v9H5a2 2 0 01-2-2zM3 11.5a2 2 0 012-2h8"/></svg>',
+  clean: '<svg class="ico" viewBox="0 0 16 16"><path d="M8 1.5l1.6 4.4 4.4 1.6-4.4 1.6L8 13.5 6.4 9.1 2 7.5l4.4-1.6z"/></svg>',
+  appear: '<svg class="ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 010 12z" fill="currentColor"/></svg>',
+};
+const TL = '<div class="tl"><i></i><i></i><i></i></div>';
+const recs = [
+  { t: "You're confusing me as I don't know what Beluga's window is. Do you want me to run the app and show you what it looks like right now?", more: true, d: 'October 18, 2026', m: '12:48 AM · 11s' },
+  { t: 'What am I taking a screenshot of? Also I do not have to install', d: 'October 18, 2026', m: '12:47 AM · 12s' },
+  { t: "Let's do Monday 3 p.m. to 4 p.m. ET as that is a good middle choice for me. And yeah, let's do Monday.", d: 'October 18, 2026', m: '12:44 AM · 9s' },
+];
+const card = r => `<div class="rcard"><p>${r.t}</p>${r.more ? `<span class="showmore">Show more ${I.chev}</span>` : ''}<div class="meta">${r.d} · ${r.m}</div></div>`;
+
+function mainWin(style, mode, ts = .8, extra = '') {
+  const list = style === 'C' ? `<div class="group">${recs.map(card).join('')}</div>` : recs.map(card).join('');
+  const rec = style === 'C' ? `<div class="recpill"><i></i>Record <kbd>⌥\`</kbd></div>` : `<div class="rec"></div>`;
+  return `<div class="${mode}-ui ${extra}"><div class="bd ${mode}"><div class="win st-${style}" style="--ts:${ts}">
+    <div class="bgl"></div>${TL}
+    <div class="search">${I.search}<span>Search in transcriptions</span></div>
+    <div class="list">${list}</div>
+    <div class="bottom"><div class="recwrap">${rec}</div>
+      <div class="bar"><div class="hints"><div>⌥\` to show mini recorder</div><div>${I.doc} Drop audio file here to transcribe</div></div>
+      <div class="btns"><div class="btn">${I.mic}</div><div class="btn">${I.trash}</div><div class="btn">${I.gear}</div></div></div></div>
+  </div></div></div>`;
+}
+
+// today (light, recreated)
+document.getElementById('today-light').innerHTML = mainWin('T', 'light', .8, 'today-vars');
+
+// ---- palettes
+const lum = h => { const c = [1,3,5].map(i => parseInt(h.slice(i, i+2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return .2126*c[0] + .7152*c[1] + .0722*c[2]; };
+const cr = (a, b) => { const x = lum(a), y = lum(b); return ((Math.max(x,y) + .05) / (Math.min(x,y) + .05)).toFixed(1); };
+const pal = {
+  light: { 'Window tint': '#E6EFF6', Card: '#FFFFFF', 'Panel': '#F2F6FA', Border: '#D5E0EA', Text: '#14202B', 'Secondary': '#5B6B7A', 'Accent text': '#2F7FB8' },
+  dark:  { 'Window tint': '#161D23', Card: '#1F2830', 'Panel': '#27323B', Border: '#2F3C47', Text: '#E8EEF3', 'Secondary': '#93A3B1', 'Accent text': '#4A9AD4' },
+};
+document.getElementById('palettes').innerHTML = ['light', 'dark'].map(m => {
+  const p = pal[m];
+  const sw = Object.entries(p).map(([k, v]) => `<div class="swc"><b style="background:${v}"></b><div>${k}<br><code>${v}</code></div></div>`).join('');
+  const rows = [
+    ['Text on card', cr(p.Text, p.Card)], ['Secondary on card', cr(p.Secondary, p.Card)],
+    ['Accent text on card', cr(p['Accent text'], p.Card)], ['#2F7FB8 text on card (for comparison)', cr('#2F7FB8', p.Card)],
+    ['White on #2F7FB8 fill (buttons, record)', cr('#FFFFFF', '#2F7FB8')], ['Card vs window', cr(p.Card, p['Window tint'])],
+  ].map(([a, b]) => `<tr><td>${a}</td><td>${b}:1</td></tr>`).join('');
+  return `<h3>${m === 'light' ? 'Light' : 'Dark'}</h3><div class="sws">${sw}</div><table class="t" style="margin:10px 0 22px"><tbody>${rows}</tbody></table>`;
+}).join('');
+
+// ---- 60% separation
+document.getElementById('sep60').innerHTML = ['light', 'dark'].map(m =>
+  `<div>${mainWin('A', m, .6, 'busy-wrap').replace(`bd ${m}`, `bd busy ${m}`)}<div class="cap">${m === 'light' ? 'Light' : 'Dark'}, card surface at 60% tint over a busy backdrop.</div></div>`).join('') +
+  `<div><div class="sep-note" style="max-width:320px">Card against window at 60%: the card is 92% opaque, so the window tint and blur barely reach it, while the window around it is 40% see-through. The card should read as a lighter plate in both modes. If you find the edge too faint, the fix is a stronger border or a slightly higher card contrast, not a different structure.</div></div>`;
+
+// ---- extras (style A)
+const empty = m => `<div class="${m}-ui"><div class="bd ${m}"><div class="win st-A" style="height:360px;width:380px"><div class="bgl"></div>${TL}
+  <div style="text-align:center;padding:30px 24px;color:var(--sub)"><div style="font-size:34px;line-height:1">⬇︎</div>
+  <div style="font-weight:600;font-size:15px;margin-top:10px">No recordings yet</div>
+  <div style="margin-top:4px">Tap the record button below to get started</div>
+  <div style="margin-top:16px;display:flex;gap:6px;justify-content:center;align-items:center">Press <span style="padding:3px 8px;border-radius:6px;background:var(--panel);border:1px solid var(--border);color:var(--txt);font-size:14px">⌥\`</span> anywhere</div></div></div></div></div>`;
+const load = m => `<div class="${m}-ui"><div class="bd ${m}"><div class="win st-A" style="height:360px;width:380px"><div class="bgl"></div>${TL}
+  <div style="position:absolute;inset:0;background:color-mix(in srgb, var(--wtint) 55%, transparent);display:grid;place-items:center">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 26px;text-align:center;box-shadow:0 8px 24px var(--shadow)">
+  <div style="width:22px;height:22px;border:3px solid var(--chip);border-top-color:var(--link);border-radius:50%;margin:0 auto 10px"></div><b>Loading Whisper Model...</b></div></div></div></div></div>`;
+const shim = m => `<div class="${m}-ui"><div class="bd ${m}" style="padding:18px"><div class="scard" style="width:300px;margin:0"><div class="shim" style="width:240px"></div><div class="shim" style="margin-top:8px;width:170px"></div></div></div></div>`;
+document.getElementById('extras').innerHTML = ['light', 'dark'].map(m => `<div>${empty(m)}<div class="cap">Empty state chip (${m})</div></div><div>${load(m)}<div class="cap">Loading overlay (${m})</div></div><div>${shim(m)}<div class="cap">Shimmer placeholder (${m})</div></div>`).join('');
+
+// ---- settings window
+const sections = [['general', 'General'], ['models', 'Models'], ['trans', 'Transcription'], ['vocab', 'Vocabulary'], ['clean', 'AI Cleanup'], ['appear', 'Appearance']];
+const side = on => `<div class="side">${TL}${sections.map(([i, n]) => `<div class="it ${n === on ? 'on' : ''}">${I[i]}${n}</div>`).join('')}<div class="grow"></div><div class="gh">GitHub ☆</div></div>`;
+const srow = (l, c, ctl) => `<div class="srow"><div class="l">${l}${c ? `<small>${c}</small>` : ''}</div>${ctl}</div>`;
+const tog = on => `<div class="tog ${on ? 'on' : ''}"></div>`;
+const general = `<h4>General</h4>
+ <div class="scard"><h5>Recording Trigger</h5><div class="seg"><span class="on">Key Combination</span><span>Single Modifier Key</span><span>Mouse Button</span></div>
+   <div class="srow"><div class="l">Shortcut</div><div class="field">⌥\`</div></div></div>
+ <div class="scard"><h5>Recording Behavior</h5>${srow('Hold to record', 'Release the key to stop.', tog(false))}${srow('Play sound on record start', '', tog(true))}${srow('Esc cancels without confirmation', '', tog(false))}</div>
+ <div class="scard"><h5>Clipboard &amp; Paste</h5>${srow('Copy transcription to clipboard', '', tog(true))}${srow('Paste automatically', 'Into the focused app.', tog(true))}</div>
+ <div class="scard"><h5>Application</h5>${srow('Start hidden in menu bar', '', tog(false))}</div>`;
+const transc = `<h4>Transcription</h4>
+ <div class="scard"><h5>Language</h5>${srow('Language', '', '<div class="field">English ⌄</div>')}${srow('Asian autocorrect', '', tog(false))}</div>
+ <div class="scard"><h5>Output Options</h5>${srow('Show timestamps', '', tog(false))}${srow('Suppress blank audio', '', tog(true))}${srow('Add space after sentence', '', tog(true))}</div>
+ <div class="scard"><h5>Initial Prompt</h5><div class="field" style="height:54px;color:var(--sub)">Names and jargon to prefer...</div></div>
+ <div class="disc">${I.chev} Advanced</div>
+ <div class="scard"><h5>Decoding Strategy</h5>${srow('Beam search', '', tog(true))}${srow('Beam size', '', '<div class="field" style="min-width:60px">5 ⌃</div>')}</div>`;
+const swin = (m, on, body, x = '') => `<div class="${m}-ui ${x}"><div class="swin">${side(on)}<div class="pane">${body}</div></div></div>`;
+document.getElementById('settings').innerHTML =
+  `<div>${swin('light', 'General', general)}<div class="cap">Light, General.</div></div><div>${swin('dark', 'Transcription', transc)}<div class="cap">Dark, Transcription with the Advanced disclosure open (Decoding, Model Parameters and Debug live under it).</div></div>`;
+
+// ---- appearance window
+const stub = t => `<div class="scard" style="padding:10px 16px"><h5 style="margin:0">${t} <span style="color:var(--sub);font-weight:400;font-size:12px"> unchanged</span></h5></div>`;
+const swatches = `<span class="sw"><i class="sel" style="background:var(--card)" title="Match window"></i><i style="background:#FFFFFF"></i><i style="background:#EEF3F8"></i><i style="background:#2A343D"></i><i style="background:#10151A"></i><i class="rainbow"></i></span>`;
+const appear = `<h4>Appearance</h4>${stub('Recording indicator')}${stub('Accent color')}
+ <div class="scard"><h5>Cards</h5>
+  ${srow('Card color', 'Match window follows the window color in light and dark.', swatches + '<span class="pbtn dis" style="margin-left:10px">Reset</span>')}
+  <div class="prev"><div class="search st-A-search" style="border-radius:20px;border:1px solid var(--border);background:var(--panel);height:34px;display:flex;align-items:center;gap:8px;padding:0 12px">${I.search}Search in transcriptions</div>
+   <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px">What am I taking a screenshot of? Also I do not have to install<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--border);color:var(--sub);font-size:12px">October 18, 2026 · 12:47 AM · 12s</div></div>
+   <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--sub);font-size:12px">Live preview, uses the style chosen above.</span><span class="btn" style="border-radius:8px;border:1px solid var(--border);background:var(--panel)">${I.gear}</span></div></div></div>
+ ${stub('Window')}`;
+document.getElementById('appearance').innerHTML =
+  `<div>${swin('light', 'Appearance', appear)}<div class="cap">Light.</div></div><div>${swin('dark', 'Appearance', appear)}<div class="cap">Dark. Swatch ideas: Match window (default), Paper, Mist, Slate, Ink, custom. Reset only clears the card color.</div></div>`;
+
+// ================= combined main window =================
+I.play = '<svg class="ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M6.7 5.5l3.6 2.5-3.6 2.5z" fill="currentColor"/></svg>';
+I.copy = '<svg class="ico" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2A1.5 1.5 0 009 2H4a1.5 1.5 0 00-1.5 1.5V9A1.5 1.5 0 004 10.5h1.5"/></svg>';
+I.regen = '<svg class="ico" viewBox="0 0 16 16"><path d="M13 8a5 5 0 11-1.5-3.6M13 2.5v3h-3"/></svg>';
+const R = {
+  a: { t: "You're confusing me as I don't know what Beluga's window is. Do you want me to run the app and show you what the app looks like right now? And then paste it into Claude? What?", tm: '12:48 AM', du: '11s' },
+  b: { t: 'What am I taking a screenshot of? Also I do not have to install', tm: '12:47 AM', du: '12s' },
+  c: { t: "Let's do Monday 3 p.m. to 4 p.m. ET as that is a good middle choice for me. And yeah, let's do Monday.", tm: '4:31 PM', du: '9s' },
+  d: { t: "Can you send me the deck before the call tomorrow? I want to skim the pricing slide first, and also please include the updated numbers from last week's pilot so I can compare them.", tm: '4:12 PM', du: '14s' },
+  e: { t: 'Remind me to follow up with the design team about the new icon set.', tm: '9:05 AM', du: '8s' },
+  f: { t: 'Note to self: rename the settings sections before the LinkedIn post goes out.', tm: '2:20 PM', du: '7s' },
+};
+const ACTS = `<div class="acts"><span class="ibtn play" title="Play">${I.play}</span><span class="ibtn" title="Copy entire text">${I.copy}</span><span class="ibtn" title="Regenerate transcription">${I.regen}</span><span class="ibtn" title="Delete">${I.trash}</span></div>`;
+const TLI = '<div class="tl"><i></i><i></i><i></i></div>';
+const MORE = `<span class="showmore">Show more ${I.chev}</span>`;
+const long = r => r.t.length > 150;
+const emptyBlk = `<div class="emptyb"><div class="big">${I.mic}</div><b>No recordings yet</b>
+  <span>Press the record button to get started, or hit <kbd>⌥\`</kbd> anywhere to open the mini recorder.</span>
+  <div class="hintrow">${I.doc} Drop an audio file anywhere in this window to transcribe it</div></div>`;
+const bot2 = tip => `<div class="bot2"><span class="btn2" title="Microphone">${I.mic}</span>
+  <div class="recwrap2">${tip ? `<div class="tip">Record<small>⌥\` opens the mini recorder</small></div>` : ''}<div class="rec"></div></div>
+  <div style="display:flex;gap:8px"><span class="btn2" title="Delete all recordings">${I.trash}</span><span class="btn2" title="Settings">${I.gear}</span></div></div>`;
+const jRow = (r, hov) => `<div class="jrow ${hov ? 'hov' : ''}"><div class="tm"><b>${r.tm}</b>${r.du}</div>
+  <div><p class="${long(r) ? 'clamp' : ''}">${r.t}</p>${long(r) ? MORE : ''}</div>${hov ? ACTS : ''}</div>`;
+const latest = `<div class="latest"><div class="lab">LATEST · TODAY ${R.a.tm} · ${R.a.du}</div><p class="clamp">${R.a.t}</p>${MORE.replace('class="showmore"', 'class="showmore" style="margin-top:8px"')}
+  <div class="lbar"><span class="copybtn" title="Copy entire text">${I.copy} Copy</span><span class="ibtn play" title="Play">${I.play}</span><span class="ibtn" title="Regenerate transcription">${I.regen}</span><span class="ibtn" title="Delete">${I.trash}</span></div></div>`;
+const winMain = (o = {}) => `<div class="bgl"></div>
+  <div class="topbar">${TLI}<span class="ibtn" title="Search">${I.search}</span></div>
+  ${o.empty ? emptyBlk : `${latest}<div class="list2"><div class="day">Today</div>${jRow(R.b, 1)}
+    <div class="day">Yesterday</div>${jRow(R.c)}${jRow(R.d)}<div class="day">October 16, 2026</div>${jRow(R.e)}${jRow(R.f)}</div>`}
+  ${bot2(o.empty)}`;
+const winSearch = () => `<div class="bgl"></div><div class="topbar" style="height:100%">${TLI}<div class="search" style="margin:0 0 0 16px;flex:1;border-radius:8px;border:1px solid var(--border)">${I.search}<span>Search in transcriptions</span><span style="margin-left:auto;font-size:11px">Esc</span></div></div>`;
+const wrap = (mode, inner, o = {}) => `<div class="${mode}-ui"><div class="bd ${mode} gray"><div class="win" style="--ts:${o.ts ?? .8};--ca:${o.ca ?? .92};${o.h ? 'height:' + o.h + 'px;' : ''}">${inner}</div></div></div>`;
+document.getElementById('main-layout').innerHTML = [['Translucent 80% over neutral gray', {}], ['Solid', { ts: 1, ca: 1 }]].map(([label, o]) => `<h3>${label}</h3>
+  <div class="row">${['light', 'dark'].map(m => `<div>${wrap(m, winMain(), o)}<div class="cap">${m === 'light' ? 'Light' : 'Dark (Blue-gray)'}, ${label}. The first journal row is hovered; the latest card is not repeated under Today.</div></div>`).join('')}</div>
+  <div class="row" style="margin-top:14px">${['light', 'dark'].map(m => `<div>${wrap(m, winMain({ empty: 1 }), { ...o, h: 380 })}<div class="cap">Empty state (${m}): the mini recorder shortcut and the file-drop hint live here, and as a tooltip on the record button. Dropping a file anywhere shows a full-window drop overlay.</div></div>`).join('')}</div>
+  <div class="row" style="margin-top:14px">${['light', 'dark'].map(m => `<div>${wrap(m, winSearch(), { ...o, h: 44 })}<div class="cap">Search expanded (${m}): the icon becomes a field in the top bar, Esc closes it.</div></div>`).join('')}</div>`).join('');
+</script>
+</body>
+</html>
